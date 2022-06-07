@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GeriRemenyi.Oanda.V20.Client\GeriRemenyi.Oanda.V20.Client.csproj" />
+    <ProjectReference Include="..\GeriRemenyi.Oanda.V20.Sdk\GeriRemenyi.Oanda.V20.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>
