@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GeriRemenyi.Oanda.V20.Sdk\GeriRemenyi.Oanda.V20.Sdk.csproj" />
+    <ProjectReference Include="..\ZoneAnalyzer.PatternAnalysis\ZoneAnalyzer.PatternAnalysis.csproj" />
   </ItemGroup>
 
 </Project>
