@@ -1,0 +1,283 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using GeriRemenyi.Oanda.V20.Client.Model;
+using Newtonsoft.Json;
+
+namespace ZoneAnalyzer.PatternAnalysis
+{
+    public class ZoneFinder
+    {
+        private readonly IOrderedEnumerable<Candlestick> candlesticks;
+
+        public static ZoneFinder Create(IOrderedEnumerable<Candlestick> candlesticks)
+        {
+            ZoneFinder result = new ZoneFinder(candlesticks);
+            return result;
+        }
+
+        private ZoneFinder(IOrderedEnumerable<Candlestick> candlesticks)
+        {
+            this.candlesticks = candlesticks;
+        }
+
+        //optimize this function
+        public List<Zone> GetAllZones()
+        {
+            var zones = new List<Zone>();
+
+            //find all zones in the data using candlestick.GetShape()
+            var zoneBuildingState = ZoneBuildingState.NotStarted;
+            var legType = LegType.Rally;
+            var legInStartPrice = 0.0;
+            var legInEndPrice = 0.0;
+            var legOutStartPrice = 0.0;
+            var legOutEndPrice = 0.0;
+            var baseRangeHigh = 0.0;
+            var baseRangeLow = 0.0;
+            var baseCandleCount = 0;
+            var zoneStartTime = DateTime.Now;
+            var zoneEndTime = DateTime.Now;
+            var zoneType = ZoneType.Supply;
+
+            var legStartTime = DateTime.Now;
+
+            foreach (var candlestick in candlesticks)
+            {
+                var candlestickShape = candlestick.GetShape();
+                switch (zoneBuildingState)
+                {
+                    case ZoneBuildingState.NotStarted:
+                        if (candlestickShape == CandlestickShape.ExcitingRally)
+                        {
+                            zoneBuildingState = ZoneBuildingState.BuildingLegIn;
+                            legStartTime = DateTime.Parse(candlestick.Time);
+                            legType = LegType.Rally;
+                            legInStartPrice = candlestick.GetCandlestickData().L;
+                            legInEndPrice = candlestick.GetCandlestickData().H;
+                            zoneStartTime = DateTime.Parse(candlestick.Time);
+                        }
+                        else if (candlestickShape == CandlestickShape.ExcitingDrop)
+                        {
+                            zoneBuildingState = ZoneBuildingState.BuildingLegIn;
+                            legStartTime = DateTime.Parse(candlestick.Time);
+                            legType = LegType.Drop;
+                            legInStartPrice = candlestick.GetCandlestickData().H;
+                            legInEndPrice = candlestick.GetCandlestickData().L;
+                            zoneStartTime = DateTime.Parse(candlestick.Time);
+                        }
+                        break;
+
+                    case ZoneBuildingState.BuildingLegIn:
+                        if (legType == LegType.Rally)
+                        {
+                            if (candlestickShape == CandlestickShape.ExcitingRally)
+                            {
+                                legInEndPrice = candlestick.GetCandlestickData().H;
+                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                            }
+                            else if (candlestickShape == CandlestickShape.Boring)
+                            {
+                                zoneBuildingState = ZoneBuildingState.BuildingBase;
+                                baseRangeHigh = candlestick.GetCandlestickData().H;
+                                baseRangeLow = candlestick.GetCandlestickData().L;
+                                baseCandleCount = 1;
+                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                            }
+                            else if (candlestickShape == CandlestickShape.ExcitingDrop)
+                            {
+                                zoneBuildingState = ZoneBuildingState.BuildingLegIn;
+                                legType = LegType.Drop;
+                                legInStartPrice = candlestick.GetCandlestickData().H;
+                                legInEndPrice = candlestick.GetCandlestickData().L;
+                                zoneStartTime = DateTime.Parse(candlestick.Time);
+                            }
+                        }
+                        else if (legType == LegType.Drop)
+                        {
+                            if (candlestickShape == CandlestickShape.ExcitingDrop)
+                            {
+                                legInEndPrice = candlestick.GetCandlestickData().L;
+                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                            }
+                            else if (candlestickShape == CandlestickShape.Boring)
+                            {
+                                zoneBuildingState = ZoneBuildingState.BuildingBase;
+                                baseRangeHigh = candlestick.GetCandlestickData().H;
+                                baseRangeLow = candlestick.GetCandlestickData().L;
+                                baseCandleCount = 1;
+                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                            }
+                            else if (candlestickShape == CandlestickShape.ExcitingRally)
+                            {
+                                zoneBuildingState = ZoneBuildingState.BuildingLegIn;
+                                legType = LegType.Rally;
+                                legInStartPrice = candlestick.GetCandlestickData().L;
+                                legInEndPrice = candlestick.GetCandlestickData().H;
+                                zoneStartTime = DateTime.Parse(candlestick.Time);
+                            }
+                        }
+                        break;
+
+                    case ZoneBuildingState.BuildingBase:
+                        if (candlestickShape == CandlestickShape.Boring)
+                        {
+                            // add to base
+                            if (candlestick.GetCandlestickData().H > baseRangeHigh)
+                            {
+                                baseRangeHigh = candlestick.GetCandlestickData().H;
+                            }
+                            if (candlestick.GetCandlestickData().L < baseRangeLow)
+                            {
+                                baseRangeLow = candlestick.GetCandlestickData().L;
+                            }
+                            baseCandleCount++;
+                            zoneEndTime = DateTime.Parse(candlestick.Time);
+                        }
+                        else if (candlestickShape == CandlestickShape.ExcitingRally)
+                        {
+                            // end base and start leg out. set zone type to supply
+                            zoneBuildingState = ZoneBuildingState.BuildingLegOut;
+                            zoneType = ZoneType.Demand;
+                            legOutStartPrice = candlestick.GetCandlestickData().L;
+                            legOutEndPrice = candlestick.GetCandlestickData().H;
+                            legStartTime = DateTime.Parse(candlestick.Time);
+                            zoneEndTime = DateTime.Parse(candlestick.Time);
+                            legType = LegType.Rally;
+                        }
+                        else if (candlestickShape == CandlestickShape.ExcitingDrop)
+                        {
+                            // end base and start leg out. set zone type to demand
+                            zoneBuildingState = ZoneBuildingState.BuildingLegOut;
+                            zoneType = ZoneType.Supply;
+                            legOutStartPrice = candlestick.GetCandlestickData().H;
+                            legOutEndPrice = candlestick.GetCandlestickData().L;
+                            legStartTime = DateTime.Parse(candlestick.Time);
+                            zoneEndTime = DateTime.Parse(candlestick.Time);
+                            legType = LegType.Drop;
+                        }
+
+                        break;
+
+                    case ZoneBuildingState.BuildingLegOut:
+                        if (legType == LegType.Rally)
+                        {
+                            if (candlestickShape == CandlestickShape.ExcitingRally)
+                            {
+                                legOutEndPrice = candlestick.GetCandlestickData().H;
+                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                            }
+                            else
+                            {
+                                zoneBuildingState = ZoneBuildingState.NotStarted;
+                                Zone zone = new Zone();
+                                zone.Type = zoneType;
+                                zone.StartTime = zoneStartTime;
+                                zone.EndTime = zoneEndTime;
+                                zone.LegInStartPrice = legInStartPrice;
+                                zone.LegInEndPrice = legInEndPrice;
+                                zone.BaseRangeHigh = baseRangeHigh;
+                                zone.BaseRangeLow = baseRangeLow;
+                                zone.BaseCandleCount = baseCandleCount;
+                                zone.LegOutStartPrice = legOutStartPrice;
+                                zone.LegOutEndPrice = legOutEndPrice;
+                                zones.Add(zone);
+
+                                // if  this candlestick is a boring candlestick, start a new zone with the current leg out start price as the leg in start price
+                                if (candlestickShape == CandlestickShape.Boring)
+                                {
+                                    zoneStartTime = legStartTime;
+                                    legInStartPrice = legOutStartPrice;
+                                    legInEndPrice = legOutEndPrice;
+
+                                    zoneBuildingState = ZoneBuildingState.BuildingBase;
+                                    baseRangeHigh = candlestick.GetCandlestickData().H;
+                                    baseRangeLow = candlestick.GetCandlestickData().L;
+                                    baseCandleCount = 1;
+                                    zoneEndTime = DateTime.Parse(candlestick.Time);
+                                }
+                                else if (candlestickShape == CandlestickShape.ExcitingDrop)
+                                {
+                                    zoneBuildingState = ZoneBuildingState.BuildingLegIn;
+                                    legType = LegType.Drop;
+                                    legInStartPrice = candlestick.GetCandlestickData().H;
+                                    legInEndPrice = candlestick.GetCandlestickData().L;
+                                    zoneStartTime = DateTime.Parse(candlestick.Time);
+                                    zoneEndTime = DateTime.Parse(candlestick.Time);
+                                }
+                            }
+                        }
+                        else if (legType == LegType.Drop)
+                        {
+                            if (candlestickShape == CandlestickShape.ExcitingDrop)
+                            {
+                                legOutEndPrice = candlestick.GetCandlestickData().L;
+                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                            }
+                            else
+                            {
+                                zoneBuildingState = ZoneBuildingState.NotStarted;
+                                Zone zone = new Zone();
+                                zone.Type = zoneType;
+                                zone.StartTime = zoneStartTime;
+                                zone.EndTime = zoneEndTime;
+                                zone.LegInStartPrice = legInStartPrice;
+                                zone.LegInEndPrice = legInEndPrice;
+                                zone.BaseRangeHigh = baseRangeHigh;
+                                zone.BaseRangeLow = baseRangeLow;
+                                zone.BaseCandleCount = baseCandleCount;
+                                zone.LegOutStartPrice = legOutStartPrice;
+                                zone.LegOutEndPrice = legOutEndPrice;
+                                zones.Add(zone);
+
+                                // if  this candlestick is a boring candlestick, start a new zone with the current leg out start price as the leg in start price
+                                if (candlestickShape == CandlestickShape.Boring)
+                                {
+                                    zoneStartTime = legStartTime;
+                                    legInStartPrice = legOutStartPrice;
+                                    legInEndPrice = legOutEndPrice;
+                                    zoneBuildingState = ZoneBuildingState.BuildingBase;
+                                    baseRangeHigh = candlestick.GetCandlestickData().H;
+                                    baseRangeLow = candlestick.GetCandlestickData().L;
+                                    baseCandleCount = 1;
+                                    zoneEndTime = DateTime.Parse(candlestick.Time);
+                                }
+                                else if (candlestickShape == CandlestickShape.ExcitingRally)
+                                {
+                                    zoneBuildingState = ZoneBuildingState.BuildingLegIn;
+                                    legType = LegType.Rally;
+                                    legInStartPrice = candlestick.GetCandlestickData().L;
+                                    legInEndPrice = candlestick.GetCandlestickData().H;
+                                    zoneStartTime = DateTime.Parse(candlestick.Time);
+                                    zoneEndTime = DateTime.Parse(candlestick.Time);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            throw new Exception("LegType not set");
+                        }
+
+                        break;
+                }
+            }
+
+            return zones;
+        }
+
+        private enum ZoneBuildingState
+        {
+            NotStarted,
+            BuildingLegIn,
+            BuildingBase,
+            BuildingLegOut
+        }
+
+        private enum LegType
+        {
+            Rally,
+            Drop
+        }
+    }
+}
