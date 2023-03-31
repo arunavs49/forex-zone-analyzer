@@ -1,27 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using GeriRemenyi.Oanda.V20.Client.Model;
+using Newtonsoft.Json;
 
 namespace ZoneAnalyzer.PatternAnalysis
 {
     public class ZoneManager
     {
-        private List<Zone> supplyZones;
-        private List<Zone> demandZones;
+        private IEnumerable<Zone> supplyZones;
+        private IEnumerable<Zone> demandZones;
 
-        private readonly IEnumerable<Candlestick> candlesticks;
+        private readonly ZoneFinder zoneFinder;
 
         public static ZoneManager Create(IEnumerable<Candlestick> candlesticks)
         {
-            ZoneManager result = new ZoneManager(candlesticks);
+            ZoneFinder zoneFinder = ZoneFinder.Create(candlesticks.ToList().OrderBy(c => DateTime.Parse(c.Time)));
+            ZoneManager result = new ZoneManager(zoneFinder);
             result.PopulateZones();
             return result;
         }
 
-        private ZoneManager(IEnumerable<Candlestick> candlesticks)
+        private ZoneManager(ZoneFinder zoneFinder)
         {
-            this.candlesticks = candlesticks;
+            this.zoneFinder = zoneFinder;
         }
 
         public List<Zone> GetSupplyZones()
@@ -36,48 +39,11 @@ namespace ZoneAnalyzer.PatternAnalysis
 
         private void PopulateZones()
         {
-            this.supplyZones = FindSupplyZones(this.candlesticks);
-            this.demandZones = FindDemandZones(this.candlesticks);
-        }
+            List<Zone> zones = this.zoneFinder.GetAllZones();
 
-        private static List<Zone> FindDemandZones(IEnumerable<Candlestick> candlesticks)
-        {
-            return new List<Zone>()
-            {
-                new Zone()
-                {
-                    Type = ZoneType.Supply,
-                    StartTime = DateTime.Now,
-                    EndTime= DateTime.Now,
-                    LegInStartPrice = 1.2,
-                    LegInEndPrice = 1.1,
-                    BaseRangeHigh = 1.14,
-                    BaseRangeLow = 1.07,
-                    BaseCandleCount = 4,
-                    LegOutStartPrice= 1.08,
-                    LegOutEndPrice = 0.98
-                }
-            };
-        }
-
-        private static List<Zone> FindSupplyZones(IEnumerable<Candlestick> candlesticks)
-        {
-            return new List<Zone>()
-            {
-                new Zone()
-                {
-                    Type = ZoneType.Demand,
-                    StartTime = DateTime.Now,
-                    EndTime= DateTime.Now,
-                    LegOutEndPrice = 1.2,
-                    LegOutStartPrice = 1.1,
-                    BaseRangeHigh = 1.14,
-                    BaseRangeLow = 1.07,
-                    BaseCandleCount = 4,
-                    LegInEndPrice= 1.08,
-                    LegInStartPrice = 0.98
-                }
-            };
+            // TODO: Add condition for zone being on a side of current price and not being tested as well
+            this.supplyZones = zones.Where(zone => zone.Type == ZoneType.Supply);
+            this.demandZones = zones.Where(zone => zone.Type == ZoneType.Demand);
         }
     }
 }

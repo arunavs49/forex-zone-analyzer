@@ -8,6 +8,9 @@ using System.Text;
 namespace GeriRemenyi.Oanda.V20.Client.Model
 {
     [DataContract]
+    // a zone is a list of candlesticks over time where there is group of exciting candles
+    // called leg in followed a group of boring candles called base and followed again by
+    // a group of exciting candles called leg out
     public class Zone : IEquatable<Zone>, IValidatableObject
     {
         [DataMember(Name = "type", EmitDefaultValue = false)]

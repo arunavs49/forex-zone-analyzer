@@ -13,7 +13,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GeriRemenyi.Oanda.V20.Sdk.P
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZoneAnalyzer.DataProvider", "ZoneAnalyzer.DataProvider\ZoneAnalyzer.DataProvider.csproj", "{219DBD3E-2D4E-4BB5-8F3C-7DEFCF6E549D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZoneAnalyzer.PatternAnalysis", "ZoneAnalyzer.PatternAnalysis\ZoneAnalyzer.PatternAnalysis.csproj", "{05C88A82-F272-4103-9D53-E5D255AB1736}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZoneAnalyzer.PatternAnalysis", "ZoneAnalyzer.PatternAnalysis\ZoneAnalyzer.PatternAnalysis.csproj", "{05C88A82-F272-4103-9D53-E5D255AB1736}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ZoneAnalyzer.PatternAnalysis.Test", "ZoneAnalyzer.PatternAnalysis.Test\ZoneAnalyzer.PatternAnalysis.Test.csproj", "{AAB52446-57D5-4ECE-A246-7402DC6DF255}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{05C88A82-F272-4103-9D53-E5D255AB1736}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{05C88A82-F272-4103-9D53-E5D255AB1736}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{05C88A82-F272-4103-9D53-E5D255AB1736}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AAB52446-57D5-4ECE-A246-7402DC6DF255}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AAB52446-57D5-4ECE-A246-7402DC6DF255}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AAB52446-57D5-4ECE-A246-7402DC6DF255}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AAB52446-57D5-4ECE-A246-7402DC6DF255}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

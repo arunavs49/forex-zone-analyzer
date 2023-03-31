@@ -371,9 +371,6 @@ MigrationBackup/
 .DS_Store
 report/
 
-/iiot-platform/iiot.factory.runtime/.env
-/iiot-platform/iiot.factory.runtime/config/*
-
 
 .venv
 
@@ -399,5 +396,8 @@ outputs/
 
 # Rider ignore history settings
 .history/
+
+# Secret files
+src/ZoneAnalyzer.DataProvider/Config.txt
 
 
