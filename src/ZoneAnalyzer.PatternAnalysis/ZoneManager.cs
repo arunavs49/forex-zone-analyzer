@@ -13,18 +13,20 @@ namespace ZoneAnalyzer.PatternAnalysis
         private IEnumerable<Zone> demandZones;
 
         private readonly ZoneFinder zoneFinder;
+        private readonly ZoneConfiguration configuration;
 
-        public static ZoneManager Create(IEnumerable<Candlestick> candlesticks)
+        public static ZoneManager Create(IEnumerable<Candlestick> candlesticks, ZoneConfiguration configuration = null)
         {
             ZoneFinder zoneFinder = ZoneFinder.Create(candlesticks.ToList().OrderBy(c => DateTime.Parse(c.Time)));
-            ZoneManager result = new ZoneManager(zoneFinder);
+            ZoneManager result = new ZoneManager(zoneFinder, configuration);
             result.PopulateZones();
             return result;
         }
 
-        private ZoneManager(ZoneFinder zoneFinder)
+        private ZoneManager(ZoneFinder zoneFinder, ZoneConfiguration configuration)
         {
             this.zoneFinder = zoneFinder;
+            this.configuration = configuration;
         }
 
         public List<Zone> GetSupplyZones()
@@ -39,7 +41,7 @@ namespace ZoneAnalyzer.PatternAnalysis
 
         private void PopulateZones()
         {
-            List<Zone> zones = this.zoneFinder.GetAllZones();
+            IEnumerable<Zone> zones = this.zoneFinder.GetAllZones().Where(zone  => configuration == null || configuration.IsMatch(zone));
 
             // TODO: Add condition for zone being on a side of current price and not being tested as well
             this.supplyZones = zones.Where(zone => zone.Type == ZoneType.Supply);
