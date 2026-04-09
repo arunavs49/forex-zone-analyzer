@@ -1,0 +1,219 @@
+@description('Azure region for all resources')
+param location string
+
+@description('Base name for resource naming')
+param baseName string
+
+@description('OANDA API token')
+@secure()
+param oandaApiToken string
+
+@description('OANDA connection type')
+param oandaConnectionType string
+
+@description('Entra ID tenant ID')
+param entraIdTenantId string
+
+@description('Entra ID client ID')
+param entraIdClientId string
+
+@description('Container image tag')
+param imageTag string
+
+var uniqueSuffix = uniqueString(resourceGroup().id)
+var acrName = replace('acr${baseName}${uniqueSuffix}', '-', '')
+var keyVaultName = 'kv-${baseName}-${take(uniqueSuffix, 6)}'
+var managedIdentityName = 'id-${baseName}'
+var logAnalyticsName = 'log-${baseName}'
+var containerAppEnvName = 'cae-${baseName}'
+var containerAppName = 'ca-${baseName}'
+
+// User-assigned managed identity for the Container App
+resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
+  name: managedIdentityName
+  location: location
+}
+
+// Log Analytics workspace for Container Apps
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: logAnalyticsName
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 30
+  }
+}
+
+// Azure Container Registry
+resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
+  name: acrName
+  location: location
+  sku: {
+    name: 'Basic'
+  }
+  properties: {
+    adminUserEnabled: false
+  }
+}
+
+// ACR Pull role assignment for managed identity
+resource acrPullRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: acr
+  name: guid(acr.id, managedIdentity.id, '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d') // AcrPull
+    principalId: managedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Azure Key Vault
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  name: keyVaultName
+  location: location
+  properties: {
+    sku: {
+      family: 'A'
+      name: 'standard'
+    }
+    tenantId: subscription().tenantId
+    enableRbacAuthorization: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 90
+  }
+}
+
+// Key Vault Secrets User role for managed identity
+resource kvSecretsRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: keyVault
+  name: guid(keyVault.id, managedIdentity.id, '4633458b-17de-408a-b874-0445c86b69e6')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
+    principalId: managedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Store OANDA token as a secret
+resource oandaSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'oanda-api-token'
+  properties: {
+    value: oandaApiToken
+  }
+}
+
+// Container Apps Environment
+resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
+  name: containerAppEnvName
+  location: location
+  properties: {
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: logAnalytics.properties.customerId
+        sharedKey: logAnalytics.listKeys().primarySharedKey
+      }
+    }
+  }
+}
+
+// Container App
+resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: containerAppName
+  location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${managedIdentity.id}': {}
+    }
+  }
+  properties: {
+    managedEnvironmentId: containerAppEnv.id
+    configuration: {
+      ingress: {
+        external: true
+        targetPort: 8080
+        transport: 'auto'
+        allowInsecure: false
+      }
+      registries: [
+        {
+          server: acr.properties.loginServer
+          identity: managedIdentity.id
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'mcp-server'
+          image: '${acr.properties.loginServer}/forex-mcp-server:${imageTag}'
+          resources: {
+            cpu: json('0.5')
+            memory: '1Gi'
+          }
+          env: [
+            {
+              name: 'ASPNETCORE_URLS'
+              value: 'http://+:8080'
+            }
+            {
+              name: 'KeyVault__Uri'
+              value: keyVault.properties.vaultUri
+            }
+            {
+              name: 'KeyVault__OandaTokenSecretName'
+              value: 'oanda-api-token'
+            }
+            {
+              name: 'Oanda__ConnectionType'
+              value: oandaConnectionType
+            }
+            {
+              name: 'AzureAd__Instance'
+              value: 'https://login.microsoftonline.com/'
+            }
+            {
+              name: 'AzureAd__TenantId'
+              value: entraIdTenantId
+            }
+            {
+              name: 'AzureAd__ClientId'
+              value: entraIdClientId
+            }
+            {
+              name: 'AzureAd__Audience'
+              value: 'api://${entraIdClientId}'
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: managedIdentity.properties.clientId
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 0
+        maxReplicas: 3
+        rules: [
+          {
+            name: 'http-rule'
+            http: {
+              metadata: {
+                concurrentRequests: '20'
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+
+output containerAppFqdn string = containerApp.properties.configuration.ingress.fqdn
+output containerRegistryLoginServer string = acr.properties.loginServer
+output keyVaultName string = keyVault.name
+output managedIdentityClientId string = managedIdentity.properties.clientId
