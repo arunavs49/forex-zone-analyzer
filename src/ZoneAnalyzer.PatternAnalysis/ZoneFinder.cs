@@ -268,15 +268,18 @@ namespace ZoneAnalyzer.PatternAnalysis
             var candlestickList = candlesticks.ToList();
             foreach (var zone in zones)
             {
-                zone.Freshness = EvaluateFreshness(zone, candlestickList);
+                EvaluateZoneStatus(zone, candlestickList);
             }
 
             return zones;
         }
 
-        private static ZoneFreshness EvaluateFreshness(Zone zone, List<Candlestick> candlestickList)
+        private static void EvaluateZoneStatus(Zone zone, List<Candlestick> candlestickList)
         {
             var freshness = ZoneFreshness.Untested;
+            var baseWidth = zone.BaseRangeHigh - zone.BaseRangeLow;
+            var tested = false;
+            var worked = false;
 
             foreach (var candle in candlestickList)
             {
@@ -293,11 +296,18 @@ namespace ZoneAnalyzer.PatternAnalysis
                     // Tested if wick enters zone but stays below zone top.
                     if (data.H > zone.BaseRangeHigh)
                     {
-                        return ZoneFreshness.Broken;
+                        freshness = ZoneFreshness.Broken;
+                        break;
                     }
                     if (data.H >= zone.BaseRangeLow)
                     {
                         freshness = ZoneFreshness.Tested;
+                        tested = true;
+                    }
+                    // After tested, check if price dropped 2x base width from zone bottom
+                    if (tested && data.L <= zone.BaseRangeLow - 2 * baseWidth)
+                    {
+                        worked = true;
                     }
                 }
                 else // Demand
@@ -307,16 +317,24 @@ namespace ZoneAnalyzer.PatternAnalysis
                     // Tested if wick enters zone but stays above zone bottom.
                     if (data.L < zone.BaseRangeLow)
                     {
-                        return ZoneFreshness.Broken;
+                        freshness = ZoneFreshness.Broken;
+                        break;
                     }
                     if (data.L <= zone.BaseRangeHigh)
                     {
                         freshness = ZoneFreshness.Tested;
+                        tested = true;
+                    }
+                    // After tested, check if price rallied 2x base width from zone top
+                    if (tested && data.H >= zone.BaseRangeHigh + 2 * baseWidth)
+                    {
+                        worked = true;
                     }
                 }
             }
 
-            return freshness;
+            zone.Freshness = freshness;
+            zone.Worked = freshness == ZoneFreshness.Untested ? null : (bool?)worked;
         }
 
         private enum ZoneBuildingState
