@@ -81,6 +81,7 @@
 | `InstrumentName` (enum) | All OANDA forex pairs (EUR_USD, GBP_JPY, etc.) |
 | `CandlestickGranularity` (enum) | S5 through M (monthly) timeframes |
 | `ZoneType` (enum) | Supply / Demand zone classification |
+| `ZoneFreshness` (enum) | Untested / Tested / Broken zone lifecycle |
 
 #### Authentication
 
@@ -221,8 +222,30 @@ States: NotStarted → BuildingLegIn → BuildingBase → BuildingLegOut
 **State transitions:**
 1. `NotStarted` → scans for first `ExcitingRally` or `ExcitingDrop` candle
 2. `BuildingLegIn` → accumulates same-direction exciting candles
-3. `BuildingBase` → accumulates `Boring` candles (consolidation)
+3. `BuildingBase` → accumulates `Boring` candles (consolidation); **exciting candles with ≥75% range overlap with the base are absorbed** rather than starting a leg out
 4. `BuildingLegOut` → accumulates opposite-direction exciting candles → **ZONE EMITTED**
+
+#### 2.4.2a Zone Freshness & Worked Evaluation
+
+After all zones are detected, a **second pass** evaluates each zone against subsequent candles:
+
+| Property | Type | Logic |
+|----------|------|-------|
+| `Freshness` | `ZoneFreshness` enum | `Untested` = price never returned; `Tested` = wick entered zone but didn't pierce; `Broken` = wick pierced through |
+| `Worked` | `bool?` | `null` if Untested; `true` if tested and price moved ≥2× base width in expected direction; `false` otherwise |
+
+**Supply zone:** Broken if any candle's H > BaseRangeHigh; Tested if H ≥ BaseRangeLow
+**Demand zone:** Broken if any candle's L < BaseRangeLow; Tested if L ≤ BaseRangeHigh
+**Worked threshold:** Supply = L ≤ BaseRangeLow − 2×width; Demand = H ≥ BaseRangeHigh + 2×width
+
+#### 2.4.2b Base Overlap Tolerance
+
+During `BuildingBase`, if an exciting candle arrives:
+1. Calculate what fraction of the candle's H-L range overlaps with the current base
+2. If **≥75%** → absorb into base (expand range, increment count, stay in BuildingBase)
+3. If **<75%** → treat as leg out (transition to BuildingLegOut)
+
+This prevents false zone boundaries from exciting candles that are mostly contained within the existing consolidation range. A small floating-point tolerance (1e-9) is applied at the 75% boundary.
 
 #### 2.4.3 Zone Configuration & Filtering
 
@@ -235,7 +258,7 @@ public class ZoneConfiguration
 }
 ```
 
-**⚠️ Known Bug:** `IsMatch()` uses `MinLegOutToBaseRangeRatio` for BOTH leg-in and leg-out checks. `MinLegInToBaseRangeRatio` is declared but never used.
+✅ **Fixed:** `IsMatch()` now correctly uses `MinLegInToBaseRangeRatio` for leg-in and `MinLegOutToBaseRangeRatio` for leg-out. Division-by-zero guard added for zero-width bases.
 
 #### 2.4.4 Trend Detection (TrendManager)
 
@@ -301,8 +324,16 @@ Main Menu
 
 | Project | Status |
 |---------|--------|
-| `Client.Test` | Auto-generated xUnit stubs — 176 model tests + 7 API tests, all `// TODO` bodies |
-| `PatternAnalysis.Test` | 1 real test: `GetSupplyZonesTest()` asserts non-null. Uses `SampleCandleSticks.json` (145 hourly candles, Feb 17-27 2023). **⚠️ Hardcoded Windows path.** |
+| `Client.Test` | Auto-generated xUnit stubs — 1250 tests (mostly `// TODO` bodies that pass) |
+| `PatternAnalysis.Test` | **15 real tests:** 4 ZoneManager tests (supply zones, sample data), 7 ZoneFinder freshness/worked tests (all supply/demand × untested/tested/broken combinations), 3 base overlap tolerance tests (absorbed/not-absorbed/boundary), 1 debug trace |
+
+#### Test Coverage
+
+| Test Class | Tests | What It Covers |
+|------------|-------|----------------|
+| `ZoneManagerTests` | 4 | Zone detection with sample JSON data, basic instantiation |
+| `ZoneFinderFreshnessTests` | 7 | Freshness (Untested/Tested/Broken) and Worked (null/true/false) for supply and demand zones |
+| `ZoneFinderBaseOverlapTests` | 3 | Base absorption of overlapping excited candles at 75% threshold |
 
 ---
 
@@ -327,8 +358,8 @@ Main Menu
 | **Backtesting** | None | Build historical simulation engine using cached candle data |
 | **Trade Setup** | Manual via console prompts | Automate: detect zone + trend → generate trade parameters |
 | **Configuration** | Hardcoded / console prompts | Use config files / environment variables |
-| **Zone Bug** | `MinLegInToBaseRangeRatio` unused | Fix `ZoneConfiguration.IsMatch()` |
-| **Tests** | Mostly stubs | Write real unit + integration tests |
+| **Zone Bug** | ✅ Fixed | `IsMatch()` now uses correct ratio per leg |
+| **Tests** | 15 real tests added | Freshness, worked, base overlap, zone detection |
 | **Target Framework** | .NET Core 3.1 (EOL) | Upgrade to .NET 8+ |
 | **Zone Validation** | TODO in source | Check if zone is on correct side of current price |
 
@@ -427,14 +458,24 @@ src/
 
 ## 7. Known Issues & Technical Debt
 
-1. **ZoneConfiguration bug** — `MinLegInToBaseRangeRatio` is declared but never used in `IsMatch()`
-2. **Hardcoded test path** — `ZoneManagerTests.cs` uses `C:\Enlistments\...` Windows path
-3. **No real caching** — `CachedInstrument` doesn't cache anything
-4. **No zone price validation** — TODO: check if zone is on correct side of current price
-5. **EOL framework** — .NET Core 3.1 is end-of-life; upgrade recommended
-6. **Empty tests** — 180+ test stubs with `// TODO` bodies
-7. **No error handling in Playground** — minimal try/catch around API calls
-8. **Secret management** — `Config.txt` gitignored but no proper secret store
+### Resolved ✅
+
+1. ~~**ZoneConfiguration bug**~~ — Fixed: `IsMatch()` now uses correct ratio for each leg + division-by-zero guard
+2. ~~**Hardcoded test path**~~ — Fixed: uses assembly-relative `Path.Combine()` + `CopyToOutputDirectory`
+3. ~~**Zero-range candle crash**~~ — Fixed: `GetShape()` guards `range > 0`, classifies zero-range as Boring
+4. ~~**DateTime culture-sensitivity**~~ — Fixed: all 29 `DateTime.Parse()` calls use `CultureInfo.InvariantCulture`
+5. ~~**Lazy LINQ re-evaluation**~~ — Fixed: supply/demand zone collections materialized with `.ToList()`
+
+### Remaining
+
+1. **No real caching** — `CachedInstrument` doesn't cache anything
+2. **No zone price validation** — TODO: check if zone is on correct side of current price
+3. **EOL framework** — .NET Core 3.1 is end-of-life; upgrade recommended for new project
+4. **Empty tests** — Client.Test has 1250 stub tests with `// TODO` bodies
+5. **No error handling in Playground** — minimal try/catch around API calls
+6. **Secret management** — `Config.txt` gitignored but no proper secret store
+7. **TrendManager fragility** — crashes with < 2 candles, returns string instead of enum (planned for redo)
+8. **RestSharp vulnerability** — v106.10.1 has known high-severity vulnerability (NU1903)
 
 ---
 
