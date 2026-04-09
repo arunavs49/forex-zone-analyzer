@@ -264,7 +264,59 @@ namespace ZoneAnalyzer.PatternAnalysis
                 }
             }
 
+            // Second pass: evaluate freshness for each zone
+            var candlestickList = candlesticks.ToList();
+            foreach (var zone in zones)
+            {
+                zone.Freshness = EvaluateFreshness(zone, candlestickList);
+            }
+
             return zones;
+        }
+
+        private static ZoneFreshness EvaluateFreshness(Zone zone, List<Candlestick> candlestickList)
+        {
+            var freshness = ZoneFreshness.Untested;
+
+            foreach (var candle in candlestickList)
+            {
+                var candleTime = DateTime.Parse(candle.Time, CultureInfo.InvariantCulture);
+                if (candleTime <= zone.EndTime)
+                    continue;
+
+                var data = candle.GetCandlestickData();
+
+                if (zone.Type == ZoneType.Supply)
+                {
+                    // Supply: sellers at the zone. Price dropped away.
+                    // Broken if wick pierces above zone top.
+                    // Tested if wick enters zone but stays below zone top.
+                    if (data.H > zone.BaseRangeHigh)
+                    {
+                        return ZoneFreshness.Broken;
+                    }
+                    if (data.H >= zone.BaseRangeLow)
+                    {
+                        freshness = ZoneFreshness.Tested;
+                    }
+                }
+                else // Demand
+                {
+                    // Demand: buyers at the zone. Price rallied away.
+                    // Broken if wick pierces below zone bottom.
+                    // Tested if wick enters zone but stays above zone bottom.
+                    if (data.L < zone.BaseRangeLow)
+                    {
+                        return ZoneFreshness.Broken;
+                    }
+                    if (data.L <= zone.BaseRangeHigh)
+                    {
+                        freshness = ZoneFreshness.Tested;
+                    }
+                }
+            }
+
+            return freshness;
         }
 
         private enum ZoneBuildingState

@@ -33,6 +33,8 @@ namespace GeriRemenyi.Oanda.V20.Client.Model
         public double BaseRangeLow { get; set; }
         [DataMember(Name = "baseCandleCount", EmitDefaultValue = false)]
         public int BaseCandleCount { get; set; }
+        [DataMember(Name = "freshness", EmitDefaultValue = false)]
+        public ZoneFreshness Freshness { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -52,6 +54,7 @@ namespace GeriRemenyi.Oanda.V20.Client.Model
             sb.Append("  BaseRangeHigh: ").Append(BaseRangeHigh).Append("\n");
             sb.Append("  BaseRangeLow: ").Append(BaseRangeLow).Append("\n");
             sb.Append("  BaseCandleCount: ").Append(BaseCandleCount).Append("\n");
+            sb.Append("  Freshness: ").Append(Freshness).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
