@@ -9,7 +9,7 @@
 
 | Aspect        | Details |
 |---------------|---------|
-| **Language**  | C# (.NET Core 3.1) |
+| **Language**  | C# (.NET 10) |
 | **Solution**  | `src/ZoneAnalyzer.sln` — 7 projects |
 | **Broker**    | OANDA V20 REST API |
 | **Auth**      | Bearer token (Personal Access Token) |
@@ -54,7 +54,7 @@
 
 - **Source:** OpenAPI Generator 3.0.25
 - **~202 .cs files** (7 API classes, 15 runtime/client classes, 180 model DTOs)
-- **Dependencies:** RestSharp 106.10, Newtonsoft.Json 12.0, JsonSubTypes 1.5
+- **Dependencies:** RestSharp 112.1, Newtonsoft.Json 13.0, JsonSubTypes 2.0
 
 #### API Endpoints Covered
 
@@ -360,7 +360,7 @@ Main Menu
 | **Configuration** | Hardcoded / console prompts | Use config files / environment variables |
 | **Zone Bug** | ✅ Fixed | `IsMatch()` now uses correct ratio per leg |
 | **Tests** | 15 real tests added | Freshness, worked, base overlap, zone detection |
-| **Target Framework** | .NET Core 3.1 (EOL) | Upgrade to .NET 8+ |
+| **Target Framework** | ✅ .NET 10 | Upgraded from .NET Core 3.1 |
 | **Zone Validation** | TODO in source | Check if zone is on correct side of current price |
 
 ### 3.3 Key Interfaces to Program Against
@@ -447,12 +447,12 @@ src/
 
 | Package | Version | Used By | Purpose |
 |---------|---------|---------|---------|
-| RestSharp | 106.10.1 | Client | HTTP requests to OANDA |
-| Newtonsoft.Json | 12.0.1 | Client | JSON serialization |
-| JsonSubTypes | 1.5.2 | Client | Polymorphic deserialization |
-| System.ComponentModel.Annotations | 4.5.0 | Client | Model validation |
-| MathNet.Numerics | (unspecified) | PatternAnalysis | Polynomial fitting for trend detection |
-| xUnit | (unspecified) | Test projects | Unit testing |
+| RestSharp | 112.1.0 | Client | HTTP requests to OANDA |
+| Newtonsoft.Json | 13.0.3 | Client | JSON serialization |
+| JsonSubTypes | 2.0.0 | Client | Polymorphic deserialization |
+| System.ComponentModel.Annotations | 5.0.0 | Client | Model validation |
+| MathNet.Numerics | 5.0.0 | PatternAnalysis | Polynomial fitting for trend detection |
+| xUnit | 2.9.3 | Test projects | Unit testing |
 
 ---
 
@@ -470,12 +470,12 @@ src/
 
 1. **No real caching** — `CachedInstrument` doesn't cache anything
 2. **No zone price validation** — TODO: check if zone is on correct side of current price
-3. **EOL framework** — .NET Core 3.1 is end-of-life; upgrade recommended for new project
+3. ~~**EOL framework**~~ — ✅ Upgraded to .NET 10
 4. **Empty tests** — Client.Test has 1250 stub tests with `// TODO` bodies
 5. **No error handling in Playground** — minimal try/catch around API calls
 6. **Secret management** — `Config.txt` gitignored but no proper secret store
 7. **TrendManager fragility** — crashes with < 2 candles, returns string instead of enum (planned for redo)
-8. **RestSharp vulnerability** — v106.10.1 has known high-severity vulnerability (NU1903)
+8. ~~**RestSharp vulnerability**~~ — ✅ Upgraded to RestSharp 112.1.0
 
 ---
 

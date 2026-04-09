@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>GeriRemenyi.Oanda.V20.Sdk.Playground</AssemblyName>
     <PackageId>GeriRemenyi.Oanda.V20.Sdk.Playground</PackageId>
     <RootNamespace>GeriRemenyi.Oanda.V20.Sdk.Playground</RootNamespace>
