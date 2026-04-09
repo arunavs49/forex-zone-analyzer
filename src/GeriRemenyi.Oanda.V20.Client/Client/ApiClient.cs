@@ -16,7 +16,6 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.IO;
-using System.Web;
 using System.Linq;
 using System.Net;
 using System.Runtime.Serialization;
@@ -25,7 +24,7 @@ using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using RestSharp;
-using RestSharp.Deserializers;
+using RestSharp.Serializers;
 using ErrorEventArgs = Newtonsoft.Json.Serialization.ErrorEventArgs;
 using RestSharpMethod = RestSharp.Method;
 
@@ -34,10 +33,9 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
     /// <summary>
     /// Allows RestSharp to Serialize/Deserialize JSON using our custom logic, but only when ContentType is JSON. 
     /// </summary>
-    internal class CustomJsonCodec : RestSharp.Serializers.ISerializer, RestSharp.Deserializers.IDeserializer
+    internal class CustomJsonCodec : IRestSerializer, ISerializer, IDeserializer
     {
         private readonly IReadableConfiguration _configuration;
-        private static readonly string _contentType = "application/json";
         private readonly JsonSerializerSettings _serializerSettings = new JsonSerializerSettings
         {
             // OpenAPI generated types generally hide default constructors.
@@ -68,7 +66,9 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
             return result;
         }
 
-        public T Deserialize<T>(IRestResponse response)
+        public string Serialize(Parameter parameter) => Serialize(parameter.Value);
+
+        public T Deserialize<T>(RestResponse response)
         {
             var result = (T) Deserialize(response, typeof(T));
             return result;
@@ -80,9 +80,9 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
         /// <param name="response">The HTTP response.</param>
         /// <param name="type">Object type.</param>
         /// <returns>Object representation of the JSON string.</returns>
-        internal object Deserialize(IRestResponse response, Type type)
+        internal object Deserialize(RestResponse response, Type type)
         {
-            IList<Parameter> headers = response.Headers;
+            var headers = response.Headers;
             if (type == typeof(byte[])) // return byte array
             {
                 return response.RawBytes;
@@ -133,14 +133,16 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
             }
         }
 
-        public string RootElement { get; set; }
-        public string Namespace { get; set; }
-        public string DateFormat { get; set; }
+        public ISerializer Serializer => this;
+        public IDeserializer Deserializer => this;
+        public DataFormat DataFormat => DataFormat.Json;
+        public string[] AcceptedContentTypes => new[] { "application/json", "text/json", "text/x-json", "text/javascript", "*+json" };
+        public SupportsContentType SupportsContentType => contentType => contentType.Value?.Contains("json") == true || contentType.Value?.Contains("javascript") == true;
 
-        public string ContentType
+        public ContentType ContentType
         {
-            get { return _contentType; }
-            set { throw new InvalidOperationException("Not allowed to set content type."); }
+            get { return ContentType.Json; }
+            set { }
         }
     }
     /// <summary>
@@ -155,14 +157,14 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
         /// Allows for extending request processing for <see cref="ApiClient"/> generated code.
         /// </summary>
         /// <param name="request">The RestSharp request object</param>
-        partial void InterceptRequest(IRestRequest request);
+        partial void InterceptRequest(RestRequest request);
 
         /// <summary>
         /// Allows for extending response processing for <see cref="ApiClient"/> generated code.
         /// </summary>
         /// <param name="request">The RestSharp request object</param>
         /// <param name="response">The RestSharp response object</param>
-        partial void InterceptResponse(IRestRequest request, IRestResponse response);
+        partial void InterceptResponse(RestRequest request, RestResponse response);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ApiClient" />, defaulting to the global configurations' base url.
@@ -197,25 +199,25 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
             switch (method)
             {
                 case HttpMethod.Get:
-                    other = RestSharpMethod.GET;
+                    other = RestSharpMethod.Get;
                     break;
                 case HttpMethod.Post:
-                    other = RestSharpMethod.POST;
+                    other = RestSharpMethod.Post;
                     break;
                 case HttpMethod.Put:
-                    other = RestSharpMethod.PUT;
+                    other = RestSharpMethod.Put;
                     break;
                 case HttpMethod.Delete:
-                    other = RestSharpMethod.DELETE;
+                    other = RestSharpMethod.Delete;
                     break;
                 case HttpMethod.Head:
-                    other = RestSharpMethod.HEAD;
+                    other = RestSharpMethod.Head;
                     break;
                 case HttpMethod.Options:
-                    other = RestSharpMethod.OPTIONS;
+                    other = RestSharpMethod.Options;
                     break;
                 case HttpMethod.Patch:
-                    other = RestSharpMethod.PATCH;
+                    other = RestSharpMethod.Patch;
                     break;
                 default:
                     throw new ArgumentOutOfRangeException("method", method, null);
@@ -246,17 +248,13 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
             if (options == null) throw new ArgumentNullException("options");
             if (configuration == null) throw new ArgumentNullException("configuration");
             
-            RestRequest request = new RestRequest(Method(method))
-            {
-                Resource = path,
-                JsonSerializer = new CustomJsonCodec(configuration)
-            };
+            RestRequest request = new RestRequest(path, Method(method));
 
             if (options.PathParameters != null)
             {
                 foreach (var pathParam in options.PathParameters)
                 {
-                    request.AddParameter(pathParam.Key, pathParam.Value, ParameterType.UrlSegment);
+                    request.AddUrlSegment(pathParam.Key, pathParam.Value);
                 }
             }
             
@@ -294,30 +292,12 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
             {
                 foreach (var formParam in options.FormParameters)
                 {
-                    request.AddParameter(formParam.Key, formParam.Value);
+                    request.AddParameter(formParam.Key, formParam.Value, ParameterType.GetOrPost);
                 }
             }
 
             if (options.Data != null)
             {
-                if (options.HeaderParameters != null)
-                {
-                    var contentTypes = options.HeaderParameters["Content-Type"];
-                    if (contentTypes == null || contentTypes.Any(header => header.Contains("application/json")))
-                    {
-                        request.RequestFormat = DataFormat.Json;
-                    }
-                    else
-                    {
-                        // TODO: Generated client user should add additional handlers. RestSharp only supports XML and JSON, with XML as default.
-                    }
-                }
-                else
-                {
-                    // Here, we'll assume JSON APIs are more common. XML can be forced by adding produces/consumes to openapi spec explicitly.
-                    request.RequestFormat = DataFormat.Json;
-                }
-
                 request.AddJsonBody(options.Data);
             }
 
@@ -328,9 +308,9 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
                     var bytes = ClientUtils.ReadAsBytes(fileParam.Value);
                     var fileStream = fileParam.Value as FileStream;
                     if (fileStream != null)
-                        request.Files.Add(FileParameter.Create(fileParam.Key, bytes, System.IO.Path.GetFileName(fileStream.Name)));
+                        request.AddFile(fileParam.Key, bytes, System.IO.Path.GetFileName(fileStream.Name));
                     else
-                        request.Files.Add(FileParameter.Create(fileParam.Key, bytes, "no_file_name_provided"));
+                        request.AddFile(fileParam.Key, bytes, "no_file_name_provided");
                 }
             }
 
@@ -338,16 +318,24 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
             {
                 foreach (var cookie in options.Cookies)
                 {
-                    request.AddCookie(cookie.Name, cookie.Value);
+                    request.AddHeader("Cookie", $"{cookie.Name}={cookie.Value}");
                 }
             }
             
             return request;
         }
 
-        private ApiResponse<T> ToApiResponse<T>(IRestResponse<T> response)
+        private ApiResponse<T> ToApiResponse<T>(RestResponse response, CustomJsonCodec deserializer)
         {
-            T result = response.Data;
+            T result = default(T);
+            if (response.Content != null)
+            {
+                try
+                {
+                    result = deserializer.Deserialize<T>(response);
+                }
+                catch (Exception) { }
+            }
             string rawContent = response.Content;
 
             var transformed = new ApiResponse<T>(response.StatusCode, new Multimap<string, string>(), result, rawContent)
@@ -364,87 +352,54 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
                 }
             }
 
-            if (response.Cookies != null)
-            {
-                foreach (var responseCookies in response.Cookies)
-                {
-                    transformed.Cookies.Add(
-                        new Cookie(
-                            responseCookies.Name, 
-                            responseCookies.Value, 
-                            responseCookies.Path, 
-                            responseCookies.Domain)
-                        );
-                }
-            }
-
             return transformed;
         }
 
-        private ApiResponse<T> Exec<T>(RestRequest req, IReadableConfiguration configuration)
+        private RestClient CreateClient(IReadableConfiguration configuration)
         {
-            RestClient client = new RestClient(_baseUrl);
+            var options = new RestClientOptions(_baseUrl);
 
-            client.ClearHandlers();
-            var existingDeserializer = req.JsonSerializer as IDeserializer;
-            if (existingDeserializer != null)
+            if (configuration.Timeout > 0)
             {
-                client.AddHandler(() => existingDeserializer, "application/json", "text/json", "text/x-json", "text/javascript", "*+json");
+                options.Timeout = TimeSpan.FromMilliseconds(configuration.Timeout);
             }
-            else
-            {
-                client.AddHandler(() => new CustomJsonCodec(configuration), "application/json", "text/json", "text/x-json", "text/javascript", "*+json");
-            }
-
-            client.AddHandler(() => new XmlDeserializer(), "application/xml", "text/xml", "*+xml", "*");
-
-            client.Timeout = configuration.Timeout;
 
             if (configuration.UserAgent != null)
             {
-                client.UserAgent = configuration.UserAgent;
+                options.UserAgent = configuration.UserAgent;
             }
 
             if (configuration.ClientCertificates != null)
             {
-                client.ClientCertificates = configuration.ClientCertificates;
+                options.ClientCertificates = configuration.ClientCertificates;
             }
+
+            var client = new RestClient(options, configureSerialization: s => s.UseSerializer(() => new CustomJsonCodec(configuration)));
+            return client;
+        }
+
+        private ApiResponse<T> Exec<T>(RestRequest req, IReadableConfiguration configuration)
+        {
+            var client = CreateClient(configuration);
+            var jsonCodec = new CustomJsonCodec(configuration);
 
             InterceptRequest(req);
 
-            var response = client.Execute<T>(req);
+            var response = client.Execute(req);
 
             InterceptResponse(req, response);
 
-            var result = ToApiResponse(response);
+            var result = ToApiResponse<T>(response, jsonCodec);
             if (response.ErrorMessage != null)
             {
                 result.ErrorText = response.ErrorMessage;
             }
 
-            if (response.Cookies != null && response.Cookies.Count > 0)
+            if (response.Cookies != null)
             {
                 if(result.Cookies == null) result.Cookies = new List<Cookie>();
-                foreach (var restResponseCookie in response.Cookies)
+                foreach (Cookie cookie in response.Cookies)
                 {
-                    var cookie = new Cookie(
-                        restResponseCookie.Name,
-                        restResponseCookie.Value,
-                        restResponseCookie.Path,
-                        restResponseCookie.Domain
-                    )
-                    {
-                        Comment = restResponseCookie.Comment,
-                        CommentUri = restResponseCookie.CommentUri,
-                        Discard = restResponseCookie.Discard,
-                        Expired = restResponseCookie.Expired,
-                        Expires = restResponseCookie.Expires,
-                        HttpOnly = restResponseCookie.HttpOnly,
-                        Port = restResponseCookie.Port,
-                        Secure = restResponseCookie.Secure,
-                        Version = restResponseCookie.Version
-                    };
-
                     result.Cookies.Add(cookie);
                 }
             }
@@ -453,68 +408,26 @@ namespace GeriRemenyi.Oanda.V20.Client.Client
 
         private async Task<ApiResponse<T>> ExecAsync<T>(RestRequest req, IReadableConfiguration configuration)
         {
-            RestClient client = new RestClient(_baseUrl);
-
-            client.ClearHandlers();
-            var existingDeserializer = req.JsonSerializer as IDeserializer;
-            if (existingDeserializer != null)
-            {
-                client.AddHandler(() => existingDeserializer, "application/json", "text/json", "text/x-json", "text/javascript", "*+json");
-            }
-            else
-            {
-                client.AddHandler(() => new CustomJsonCodec(configuration), "application/json", "text/json", "text/x-json", "text/javascript", "*+json");
-            }
-
-            client.AddHandler(() => new XmlDeserializer(), "application/xml", "text/xml", "*+xml", "*");
-
-            client.Timeout = configuration.Timeout;
-
-            if (configuration.UserAgent != null)
-            {
-                client.UserAgent = configuration.UserAgent;
-            }
-
-            if (configuration.ClientCertificates != null)
-            {
-                client.ClientCertificates = configuration.ClientCertificates;
-            }
+            var client = CreateClient(configuration);
+            var jsonCodec = new CustomJsonCodec(configuration);
 
             InterceptRequest(req);
 
-            var response = await client.ExecuteAsync<T>(req);
+            var response = await client.ExecuteAsync(req);
 
             InterceptResponse(req, response);
 
-            var result = ToApiResponse(response);
+            var result = ToApiResponse<T>(response, jsonCodec);
             if (response.ErrorMessage != null)
             {
                 result.ErrorText = response.ErrorMessage;
             }
 
-            if (response.Cookies != null && response.Cookies.Count > 0)
+            if (response.Cookies != null)
             {
                 if(result.Cookies == null) result.Cookies = new List<Cookie>();
-                foreach (var restResponseCookie in response.Cookies)
+                foreach (Cookie cookie in response.Cookies)
                 {
-                    var cookie = new Cookie(
-                        restResponseCookie.Name,
-                        restResponseCookie.Value,
-                        restResponseCookie.Path,
-                        restResponseCookie.Domain
-                    )
-                    {
-                        Comment = restResponseCookie.Comment,
-                        CommentUri = restResponseCookie.CommentUri,
-                        Discard = restResponseCookie.Discard,
-                        Expired = restResponseCookie.Expired,
-                        Expires = restResponseCookie.Expires,
-                        HttpOnly = restResponseCookie.HttpOnly,
-                        Port = restResponseCookie.Port,
-                        Secure = restResponseCookie.Secure,
-                        Version = restResponseCookie.Version
-                    };
-
                     result.Cookies.Add(cookie);
                 }
             }

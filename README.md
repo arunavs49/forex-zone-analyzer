@@ -23,7 +23,7 @@ Exciting candles whose range overlaps ≥75% with the existing base are absorbed
 
 | Aspect | Details |
 |--------|---------|
-| Language | C# (.NET Core 3.1) |
+| Language | C# (.NET 10) |
 | Solution | `src/ZoneAnalyzer.sln` — 7 projects |
 | Broker | OANDA V20 REST API |
 | Auth | Bearer token |
@@ -31,7 +31,7 @@ Exciting candles whose range overlaps ≥75% with the existing base are absorbed
 ## Quick Start
 
 ```bash
-# Build (requires .NET Core 3.1 SDK)
+# Build (requires .NET 10 SDK)
 dotnet build src/ZoneAnalyzer.sln
 
 # Run tests (15 tests)
