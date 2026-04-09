@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using GeriRemenyi.Oanda.V20.Client.Model;
@@ -17,7 +18,7 @@ namespace ZoneAnalyzer.PatternAnalysis
 
         public static ZoneManager Create(IEnumerable<Candlestick> candlesticks, ZoneConfiguration configuration = null)
         {
-            ZoneFinder zoneFinder = ZoneFinder.Create(candlesticks.ToList().OrderBy(c => DateTime.Parse(c.Time)));
+            ZoneFinder zoneFinder = ZoneFinder.Create(candlesticks.ToList().OrderBy(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture)));
             ZoneManager result = new ZoneManager(zoneFinder, configuration);
             result.PopulateZones();
             return result;
@@ -44,8 +45,8 @@ namespace ZoneAnalyzer.PatternAnalysis
             IEnumerable<Zone> zones = this.zoneFinder.GetAllZones().Where(zone  => configuration == null || configuration.IsMatch(zone));
 
             // TODO: Add condition for zone being on a side of current price and not being tested as well
-            this.supplyZones = zones.Where(zone => zone.Type == ZoneType.Supply);
-            this.demandZones = zones.Where(zone => zone.Type == ZoneType.Demand);
+            this.supplyZones = zones.Where(zone => zone.Type == ZoneType.Supply).ToList();
+            this.demandZones = zones.Where(zone => zone.Type == ZoneType.Demand).ToList();
         }
     }
 }

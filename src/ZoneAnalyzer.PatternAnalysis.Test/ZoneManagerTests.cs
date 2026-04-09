@@ -24,7 +24,8 @@ namespace ZoneAnalyzer.PatternAnalysis.Test
 
         public ZoneManagerTests()
         {
-            string serializedCandlesticks = File.ReadAllText("C:\\Enlistments\\forex-zone-analyzer\\src\\ZoneAnalyzer.PatternAnalysis.Test\\SampleCandleSticks.json");
+            var samplePath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "SampleCandleSticks.json");
+            string serializedCandlesticks = File.ReadAllText(samplePath);
             IEnumerable<Candlestick> candlesticks = (IEnumerable<Candlestick>)JsonConvert.DeserializeObject(serializedCandlesticks,typeof(IEnumerable<Candlestick>));
             instance = ZoneManager.Create(candlesticks);
         }

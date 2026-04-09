@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using GeriRemenyi.Oanda.V20.Client.Model;
@@ -52,20 +53,20 @@ namespace ZoneAnalyzer.PatternAnalysis
                         if (candlestickShape == CandlestickShape.ExcitingRally)
                         {
                             zoneBuildingState = ZoneBuildingState.BuildingLegIn;
-                            legStartTime = DateTime.Parse(candlestick.Time);
+                            legStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             legType = LegType.Rally;
                             legInStartPrice = candlestick.GetCandlestickData().L;
                             legInEndPrice = candlestick.GetCandlestickData().H;
-                            zoneStartTime = DateTime.Parse(candlestick.Time);
+                            zoneStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                         }
                         else if (candlestickShape == CandlestickShape.ExcitingDrop)
                         {
                             zoneBuildingState = ZoneBuildingState.BuildingLegIn;
-                            legStartTime = DateTime.Parse(candlestick.Time);
+                            legStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             legType = LegType.Drop;
                             legInStartPrice = candlestick.GetCandlestickData().H;
                             legInEndPrice = candlestick.GetCandlestickData().L;
-                            zoneStartTime = DateTime.Parse(candlestick.Time);
+                            zoneStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                         }
                         break;
 
@@ -75,7 +76,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                             if (candlestickShape == CandlestickShape.ExcitingRally)
                             {
                                 legInEndPrice = candlestick.GetCandlestickData().H;
-                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                                zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             }
                             else if (candlestickShape == CandlestickShape.Boring)
                             {
@@ -83,7 +84,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                                 baseRangeHigh = candlestick.GetCandlestickData().H;
                                 baseRangeLow = candlestick.GetCandlestickData().L;
                                 baseCandleCount = 1;
-                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                                zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             }
                             else if (candlestickShape == CandlestickShape.ExcitingDrop)
                             {
@@ -91,7 +92,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                                 legType = LegType.Drop;
                                 legInStartPrice = candlestick.GetCandlestickData().H;
                                 legInEndPrice = candlestick.GetCandlestickData().L;
-                                zoneStartTime = DateTime.Parse(candlestick.Time);
+                                zoneStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             }
                         }
                         else if (legType == LegType.Drop)
@@ -99,7 +100,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                             if (candlestickShape == CandlestickShape.ExcitingDrop)
                             {
                                 legInEndPrice = candlestick.GetCandlestickData().L;
-                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                                zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             }
                             else if (candlestickShape == CandlestickShape.Boring)
                             {
@@ -107,7 +108,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                                 baseRangeHigh = candlestick.GetCandlestickData().H;
                                 baseRangeLow = candlestick.GetCandlestickData().L;
                                 baseCandleCount = 1;
-                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                                zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             }
                             else if (candlestickShape == CandlestickShape.ExcitingRally)
                             {
@@ -115,7 +116,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                                 legType = LegType.Rally;
                                 legInStartPrice = candlestick.GetCandlestickData().L;
                                 legInEndPrice = candlestick.GetCandlestickData().H;
-                                zoneStartTime = DateTime.Parse(candlestick.Time);
+                                zoneStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             }
                         }
                         break;
@@ -133,7 +134,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                                 baseRangeLow = candlestick.GetCandlestickData().L;
                             }
                             baseCandleCount++;
-                            zoneEndTime = DateTime.Parse(candlestick.Time);
+                            zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                         }
                         else if (candlestickShape == CandlestickShape.ExcitingRally)
                         {
@@ -142,8 +143,8 @@ namespace ZoneAnalyzer.PatternAnalysis
                             zoneType = ZoneType.Demand;
                             legOutStartPrice = candlestick.GetCandlestickData().L;
                             legOutEndPrice = candlestick.GetCandlestickData().H;
-                            legStartTime = DateTime.Parse(candlestick.Time);
-                            zoneEndTime = DateTime.Parse(candlestick.Time);
+                            legStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
+                            zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             legType = LegType.Rally;
                         }
                         else if (candlestickShape == CandlestickShape.ExcitingDrop)
@@ -153,8 +154,8 @@ namespace ZoneAnalyzer.PatternAnalysis
                             zoneType = ZoneType.Supply;
                             legOutStartPrice = candlestick.GetCandlestickData().H;
                             legOutEndPrice = candlestick.GetCandlestickData().L;
-                            legStartTime = DateTime.Parse(candlestick.Time);
-                            zoneEndTime = DateTime.Parse(candlestick.Time);
+                            legStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
+                            zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             legType = LegType.Drop;
                         }
 
@@ -166,7 +167,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                             if (candlestickShape == CandlestickShape.ExcitingRally)
                             {
                                 legOutEndPrice = candlestick.GetCandlestickData().H;
-                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                                zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             }
                             else
                             {
@@ -195,7 +196,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                                     baseRangeHigh = candlestick.GetCandlestickData().H;
                                     baseRangeLow = candlestick.GetCandlestickData().L;
                                     baseCandleCount = 1;
-                                    zoneEndTime = DateTime.Parse(candlestick.Time);
+                                    zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                                 }
                                 else if (candlestickShape == CandlestickShape.ExcitingDrop)
                                 {
@@ -203,8 +204,8 @@ namespace ZoneAnalyzer.PatternAnalysis
                                     legType = LegType.Drop;
                                     legInStartPrice = candlestick.GetCandlestickData().H;
                                     legInEndPrice = candlestick.GetCandlestickData().L;
-                                    zoneStartTime = DateTime.Parse(candlestick.Time);
-                                    zoneEndTime = DateTime.Parse(candlestick.Time);
+                                    zoneStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
+                                    zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                                 }
                             }
                         }
@@ -213,7 +214,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                             if (candlestickShape == CandlestickShape.ExcitingDrop)
                             {
                                 legOutEndPrice = candlestick.GetCandlestickData().L;
-                                zoneEndTime = DateTime.Parse(candlestick.Time);
+                                zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                             }
                             else
                             {
@@ -241,7 +242,7 @@ namespace ZoneAnalyzer.PatternAnalysis
                                     baseRangeHigh = candlestick.GetCandlestickData().H;
                                     baseRangeLow = candlestick.GetCandlestickData().L;
                                     baseCandleCount = 1;
-                                    zoneEndTime = DateTime.Parse(candlestick.Time);
+                                    zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                                 }
                                 else if (candlestickShape == CandlestickShape.ExcitingRally)
                                 {
@@ -249,8 +250,8 @@ namespace ZoneAnalyzer.PatternAnalysis
                                     legType = LegType.Rally;
                                     legInStartPrice = candlestick.GetCandlestickData().L;
                                     legInEndPrice = candlestick.GetCandlestickData().H;
-                                    zoneStartTime = DateTime.Parse(candlestick.Time);
-                                    zoneEndTime = DateTime.Parse(candlestick.Time);
+                                    zoneStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
+                                    zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                                 }
                             }
                         }

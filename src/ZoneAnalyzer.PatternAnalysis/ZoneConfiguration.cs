@@ -13,14 +13,16 @@ namespace ZoneAnalyzer.PatternAnalysis
 
         public bool IsMatch(Zone zone)
         {
-            if (zone.BaseCandleCount >= MinBaseLength &&
-                Math.Abs((zone.LegInEndPrice - zone.LegInStartPrice) / (zone.BaseRangeHigh - zone.BaseRangeLow)) >= MinLegOutToBaseRangeRatio &&
-                Math.Abs((zone.LegOutEndPrice - zone.LegOutStartPrice) / (zone.BaseRangeHigh - zone.BaseRangeLow)) >= MinLegOutToBaseRangeRatio)
-            {
-                return true;
-            }
+            var baseRange = zone.BaseRangeHigh - zone.BaseRangeLow;
+            if (baseRange <= 0)
+                return false;
 
-            return false;
+            var legInRatio = Math.Abs((zone.LegInEndPrice - zone.LegInStartPrice) / baseRange);
+            var legOutRatio = Math.Abs((zone.LegOutEndPrice - zone.LegOutStartPrice) / baseRange);
+
+            return zone.BaseCandleCount >= MinBaseLength &&
+                   legInRatio >= MinLegInToBaseRangeRatio &&
+                   legOutRatio >= MinLegOutToBaseRangeRatio;
         }
     }
 }

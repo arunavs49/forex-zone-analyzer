@@ -17,4 +17,10 @@
     <ProjectReference Include="..\ZoneAnalyzer.PatternAnalysis\ZoneAnalyzer.PatternAnalysis.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="SampleCandleSticks.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

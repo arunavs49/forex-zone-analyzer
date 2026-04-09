@@ -28,7 +28,8 @@ namespace ZoneAnalyzer.PatternAnalysis
         {
             CandlestickShape result = CandlestickShape.Boring;
             CandlestickData candlestickData = candlestick.GetCandlestickData(candlestickType);
-            if (Math.Abs(candlestickData.O - candlestickData.C) * 2 >= (candlestickData.H - candlestickData.L))
+            var range = candlestickData.H - candlestickData.L;
+            if (range > 0 && Math.Abs(candlestickData.O - candlestickData.C) * 2 >= range)
             {
                 if (candlestickData.O - candlestickData.C > 0)
                     result = CandlestickShape.ExcitingDrop;

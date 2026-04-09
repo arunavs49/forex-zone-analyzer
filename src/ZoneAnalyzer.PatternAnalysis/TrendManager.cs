@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using GeriRemenyi.Oanda.V20.Client.Model;
 using MathNet.Numerics;
@@ -11,7 +12,7 @@ namespace ZoneAnalyzer.PatternAnalysis
         private readonly IOrderedEnumerable<Candlestick> candlesticks;
         public static TrendManager Create(IEnumerable<Candlestick> candlesticks)
         {
-            TrendManager result = new TrendManager(candlesticks.ToList().OrderBy(c => DateTime.Parse(c.Time)));
+            TrendManager result = new TrendManager(candlesticks.ToList().OrderBy(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture)));
             return result;
         }
 
@@ -24,15 +25,15 @@ namespace ZoneAnalyzer.PatternAnalysis
         {
             if (!currentTimeForTrend.HasValue)
             {
-                currentTimeForTrend = candlesticks.Max(c => DateTime.Parse(c.Time));
+                currentTimeForTrend = candlesticks.Max(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture));
             }
 
             // Determine if the trend is Up, Down or Sideways using the Close price of the candlesticks.
-            IOrderedEnumerable<Candlestick> widerSample = this.candlesticks.Where(c => DateTime.Parse(c.Time) <= currentTimeForTrend)
-                .OrderBy(c => DateTime.Parse(c.Time));
+            IOrderedEnumerable<Candlestick> widerSample = this.candlesticks.Where(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture) <= currentTimeForTrend)
+                .OrderBy(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture));
             double[] trendPrices = widerSample
                 .TakeLast(Math.Min(60, widerSample.Count()))
-                .OrderBy(c => DateTime.Parse(c.Time))
+                .OrderBy(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture))
                 .Select(c => c.Mid.C)
                 .ToArray();
 
