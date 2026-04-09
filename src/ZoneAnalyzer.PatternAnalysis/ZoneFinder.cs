@@ -136,27 +136,40 @@ namespace ZoneAnalyzer.PatternAnalysis
                             baseCandleCount++;
                             zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
                         }
-                        else if (candlestickShape == CandlestickShape.ExcitingRally)
+                        else if (candlestickShape == CandlestickShape.ExcitingRally
+                              || candlestickShape == CandlestickShape.ExcitingDrop)
                         {
-                            // end base and start leg out. set zone type to supply
-                            zoneBuildingState = ZoneBuildingState.BuildingLegOut;
-                            zoneType = ZoneType.Demand;
-                            legOutStartPrice = candlestick.GetCandlestickData().L;
-                            legOutEndPrice = candlestick.GetCandlestickData().H;
-                            legStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
-                            zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
-                            legType = LegType.Rally;
-                        }
-                        else if (candlestickShape == CandlestickShape.ExcitingDrop)
-                        {
-                            // end base and start leg out. set zone type to demand
-                            zoneBuildingState = ZoneBuildingState.BuildingLegOut;
-                            zoneType = ZoneType.Supply;
-                            legOutStartPrice = candlestick.GetCandlestickData().H;
-                            legOutEndPrice = candlestick.GetCandlestickData().L;
-                            legStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
-                            zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
-                            legType = LegType.Drop;
+                            var candleH = candlestick.GetCandlestickData().H;
+                            var candleL = candlestick.GetCandlestickData().L;
+
+                            if (OverlapsWithBase(candleH, candleL, baseRangeHigh, baseRangeLow))
+                            {
+                                // Exciting candle mostly within base — absorb it
+                                if (candleH > baseRangeHigh) baseRangeHigh = candleH;
+                                if (candleL < baseRangeLow) baseRangeLow = candleL;
+                                baseCandleCount++;
+                                zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
+                            }
+                            else if (candlestickShape == CandlestickShape.ExcitingRally)
+                            {
+                                zoneBuildingState = ZoneBuildingState.BuildingLegOut;
+                                zoneType = ZoneType.Demand;
+                                legOutStartPrice = candleL;
+                                legOutEndPrice = candleH;
+                                legStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
+                                zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
+                                legType = LegType.Rally;
+                            }
+                            else // ExcitingDrop
+                            {
+                                zoneBuildingState = ZoneBuildingState.BuildingLegOut;
+                                zoneType = ZoneType.Supply;
+                                legOutStartPrice = candleH;
+                                legOutEndPrice = candleL;
+                                legStartTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
+                                zoneEndTime = DateTime.Parse(candlestick.Time, CultureInfo.InvariantCulture);
+                                legType = LegType.Drop;
+                            }
                         }
 
                         break;
@@ -335,6 +348,21 @@ namespace ZoneAnalyzer.PatternAnalysis
 
             zone.Freshness = freshness;
             zone.Worked = freshness == ZoneFreshness.Untested ? null : (bool?)worked;
+        }
+
+        private const double BaseOverlapThreshold = 0.75;
+        private const double FloatTolerance = 1e-9;
+
+        private static bool OverlapsWithBase(double candleH, double candleL, double baseHigh, double baseLow)
+        {
+            var candleRange = candleH - candleL;
+            if (candleRange <= 0) return true;
+
+            var overlapHigh = Math.Min(candleH, baseHigh);
+            var overlapLow = Math.Max(candleL, baseLow);
+            var overlap = Math.Max(0, overlapHigh - overlapLow);
+
+            return overlap / candleRange >= BaseOverlapThreshold - FloatTolerance;
         }
 
         private enum ZoneBuildingState
