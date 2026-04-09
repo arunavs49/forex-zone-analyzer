@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace GeriRemenyi.Oanda.V20.Client.Model
 {
+    [JsonConverter(typeof(StringEnumConverter))]
     public enum ZoneType
     { 
         Supply,
