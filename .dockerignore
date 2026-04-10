@@ -1,0 +1,13 @@
+# Build context: repo root
+# Ignore build artifacts and sensitive files
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/node_modules/
+*.user
+*.suo
+.git/
+.github/
+Config.txt
+appsettings.Development.json
