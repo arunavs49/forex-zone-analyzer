@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ForexZoneAnalyzer.McpServer
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ForexZoneAnalyzer.Worker", "ForexZoneAnalyzer.Worker\ForexZoneAnalyzer.Worker.csproj", "{BFD3BCC0-97AE-455F-A91E-F0AB007E7A0A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ForexZoneAnalyzer.Worker.Test", "ForexZoneAnalyzer.Worker.Test\ForexZoneAnalyzer.Worker.Test.csproj", "{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -153,6 +155,18 @@ Global
 		{BFD3BCC0-97AE-455F-A91E-F0AB007E7A0A}.Release|x64.Build.0 = Release|Any CPU
 		{BFD3BCC0-97AE-455F-A91E-F0AB007E7A0A}.Release|x86.ActiveCfg = Release|Any CPU
 		{BFD3BCC0-97AE-455F-A91E-F0AB007E7A0A}.Release|x86.Build.0 = Release|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Debug|x64.Build.0 = Debug|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Debug|x86.Build.0 = Debug|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Release|x64.ActiveCfg = Release|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Release|x64.Build.0 = Release|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Release|x86.ActiveCfg = Release|Any CPU
+		{C46B8F86-AB9F-4AC7-8881-135CBFEF5371}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
