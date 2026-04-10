@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "275618082576210882"
+      "templateHash": "9902338359384716714"
     }
   },
   "parameters": {
@@ -65,6 +65,20 @@
       "metadata": {
         "description": "Deploy the Container App (set to false for initial infra-only deployment)"
       }
+    },
+    "deployWorker": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Deploy the Worker Container App"
+      }
+    },
+    "notificationEmail": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Notification email address for zone alerts"
+      }
     }
   },
   "variables": {
@@ -111,6 +125,12 @@
           },
           "deployApp": {
             "value": "[parameters('deployApp')]"
+          },
+          "deployWorker": {
+            "value": "[parameters('deployWorker')]"
+          },
+          "notificationEmail": {
+            "value": "[parameters('notificationEmail')]"
           }
         },
         "template": {
@@ -120,7 +140,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "7614802161809524145"
+              "templateHash": "7354350402258089313"
             }
           },
           "parameters": {
@@ -171,6 +191,18 @@
               "metadata": {
                 "description": "Deploy the Container App"
               }
+            },
+            "deployWorker": {
+              "type": "bool",
+              "metadata": {
+                "description": "Deploy the Worker Container App"
+              }
+            },
+            "notificationEmail": {
+              "type": "string",
+              "metadata": {
+                "description": "Notification email address"
+              }
             }
           },
           "variables": {
@@ -180,7 +212,11 @@
             "managedIdentityName": "[format('id-{0}', parameters('baseName'))]",
             "logAnalyticsName": "[format('log-{0}', parameters('baseName'))]",
             "containerAppEnvName": "[format('cae-{0}', parameters('baseName'))]",
-            "containerAppName": "[format('ca-{0}', parameters('baseName'))]"
+            "containerAppName": "[format('ca-{0}', parameters('baseName'))]",
+            "workerAppName": "[format('ca-{0}-worker', parameters('baseName'))]",
+            "storageAccountName": "[replace(format('st{0}{1}', parameters('baseName'), take(variables('uniqueSuffix'), 8)), '-', '')]",
+            "communicationServiceName": "[format('acs-{0}', parameters('baseName'))]",
+            "emailServiceName": "[format('acs-email-{0}', parameters('baseName'))]"
           },
           "resources": [
             {
@@ -267,6 +303,85 @@
                 "value": "[parameters('oandaApiToken')]"
               },
               "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-05-01",
+              "name": "[variables('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "kind": "StorageV2",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "properties": {
+                "minimumTlsVersion": "TLS1_2",
+                "allowBlobPublicAccess": false,
+                "supportsHttpsTrafficOnly": true
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-07-31-preview').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Communication/communicationServices",
+              "apiVersion": "2023-04-01",
+              "name": "[variables('communicationServiceName')]",
+              "location": "global",
+              "properties": {
+                "dataLocation": "United States",
+                "linkedDomains": [
+                  "[resourceId('Microsoft.Communication/emailServices/domains', variables('emailServiceName'), 'AzureManagedDomain')]"
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Communication/emailServices/domains', variables('emailServiceName'), 'AzureManagedDomain')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Communication/emailServices",
+              "apiVersion": "2023-04-01",
+              "name": "[variables('emailServiceName')]",
+              "location": "global",
+              "properties": {
+                "dataLocation": "United States"
+              }
+            },
+            {
+              "type": "Microsoft.Communication/emailServices/domains",
+              "apiVersion": "2023-04-01",
+              "name": "[format('{0}/{1}', variables('emailServiceName'), 'AzureManagedDomain')]",
+              "location": "global",
+              "properties": {
+                "domainManagement": "AzureManaged",
+                "userEngagementTracking": "Disabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Communication/emailServices', variables('emailServiceName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', variables('keyVaultName'), 'acs-connection-string')]",
+              "properties": {
+                "value": "[listKeys(resourceId('Microsoft.Communication/communicationServices', variables('communicationServiceName')), '2023-04-01').primaryConnectionString]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Communication/communicationServices', variables('communicationServiceName'))]",
                 "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
               ]
             },
@@ -387,6 +502,99 @@
                 "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
                 "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
               ]
+            },
+            {
+              "condition": "[parameters('deployWorker')]",
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2024-03-01",
+              "name": "[variables('workerAppName')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')))]": {}
+                }
+              },
+              "properties": {
+                "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppEnvName'))]",
+                "configuration": {
+                  "secrets": [
+                    {
+                      "name": "acs-connection-string",
+                      "value": "[listKeys(resourceId('Microsoft.Communication/communicationServices', variables('communicationServiceName')), '2023-04-01').primaryConnectionString]"
+                    }
+                  ],
+                  "registries": [
+                    {
+                      "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-11-01-preview').loginServer]",
+                      "identity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]"
+                    }
+                  ]
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "worker",
+                      "image": "[format('{0}/forex-worker:{1}', reference(resourceId('Microsoft.ContainerRegistry/registries', variables('acrName')), '2023-11-01-preview').loginServer, parameters('imageTag'))]",
+                      "resources": {
+                        "cpu": "[json('0.25')]",
+                        "memory": "0.5Gi"
+                      },
+                      "env": [
+                        {
+                          "name": "KeyVault__Uri",
+                          "value": "[reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2023-07-01').vaultUri]"
+                        },
+                        {
+                          "name": "KeyVault__OandaTokenSecretName",
+                          "value": "oanda-api-token"
+                        },
+                        {
+                          "name": "Oanda__ConnectionType",
+                          "value": "[parameters('oandaConnectionType')]"
+                        },
+                        {
+                          "name": "Storage__AccountName",
+                          "value": "[variables('storageAccountName')]"
+                        },
+                        {
+                          "name": "Storage__TableName",
+                          "value": "zones"
+                        },
+                        {
+                          "name": "Notification__EmailTo",
+                          "value": "[parameters('notificationEmail')]"
+                        },
+                        {
+                          "name": "Notification__EmailFrom",
+                          "value": "[format('DoNotReply@{0}', reference(resourceId('Microsoft.Communication/emailServices/domains', variables('emailServiceName'), 'AzureManagedDomain'), '2023-04-01').mailFromSenderDomain)]"
+                        },
+                        {
+                          "name": "Notification__AcsConnectionString",
+                          "secretRef": "acs-connection-string"
+                        },
+                        {
+                          "name": "AZURE_CLIENT_ID",
+                          "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-07-31-preview').clientId]"
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": 1,
+                    "maxReplicas": 1
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ContainerRegistry/registries', variables('acrName'))]",
+                "[resourceId('Microsoft.Communication/communicationServices', variables('communicationServiceName'))]",
+                "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppEnvName'))]",
+                "[resourceId('Microsoft.Communication/emailServices/domains', variables('emailServiceName'), 'AzureManagedDomain')]",
+                "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
             }
           ],
           "outputs": {
@@ -405,6 +613,10 @@
             "managedIdentityClientId": {
               "type": "string",
               "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-07-31-preview').clientId]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "value": "[variables('storageAccountName')]"
             }
           }
         }
@@ -434,6 +646,10 @@
     "mcpEndpoint": {
       "type": "string",
       "value": "[if(parameters('deployApp'), format('https://{0}/mcp', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'resources-deployment'), '2025-04-01').outputs.containerAppFqdn.value), 'not-deployed')]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'resources-deployment'), '2025-04-01').outputs.storageAccountName.value]"
     }
   }
 }

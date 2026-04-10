@@ -25,14 +25,15 @@ else
     builder.Services.AddSingleton<IZoneStore, TableStorageZoneStore>();
 }
 
-// Notification: console in development, email in production
-if (builder.Environment.IsDevelopment())
+// Notification: email when ACS is configured, console otherwise
+var acsConnectionString = builder.Configuration["Notification:AcsConnectionString"];
+if (!string.IsNullOrEmpty(acsConnectionString))
 {
-    builder.Services.AddSingleton<INotificationService, ConsoleNotificationService>();
+    builder.Services.AddSingleton<INotificationService, EmailNotificationService>();
 }
 else
 {
-    builder.Services.AddSingleton<INotificationService, EmailNotificationService>();
+    builder.Services.AddSingleton<INotificationService, ConsoleNotificationService>();
 }
 
 // Background worker

@@ -38,6 +38,8 @@ var containerAppEnvName = 'cae-${baseName}'
 var containerAppName = 'ca-${baseName}'
 var workerAppName = 'ca-${baseName}-worker'
 var storageAccountName = replace('st${baseName}${take(uniqueSuffix, 8)}', '-', '')
+var communicationServiceName = 'acs-${baseName}'
+var emailServiceName = 'acs-email-${baseName}'
 
 // User-assigned managed identity for the Container App
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
@@ -139,6 +141,47 @@ resource storageTableRole 'Microsoft.Authorization/roleAssignments@2022-04-01' =
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3') // Storage Table Data Contributor
     principalId: managedIdentity.properties.principalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+// Azure Communication Services
+resource communicationService 'Microsoft.Communication/communicationServices@2023-04-01' = {
+  name: communicationServiceName
+  location: 'global'
+  properties: {
+    dataLocation: 'United States'
+    linkedDomains: [
+      emailDomain.id
+    ]
+  }
+}
+
+// Email Communication Services
+resource emailService 'Microsoft.Communication/emailServices@2023-04-01' = {
+  name: emailServiceName
+  location: 'global'
+  properties: {
+    dataLocation: 'United States'
+  }
+}
+
+// Azure-managed email domain (free *.azurecomm.net)
+resource emailDomain 'Microsoft.Communication/emailServices/domains@2023-04-01' = {
+  parent: emailService
+  name: 'AzureManagedDomain'
+  location: 'global'
+  properties: {
+    domainManagement: 'AzureManaged'
+    userEngagementTracking: 'Disabled'
+  }
+}
+
+// Store ACS connection string in Key Vault
+resource acsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'acs-connection-string'
+  properties: {
+    value: communicationService.listKeys().primaryConnectionString
   }
 }
 
@@ -263,6 +306,12 @@ resource workerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWorker) 
   properties: {
     managedEnvironmentId: containerAppEnv.id
     configuration: {
+      secrets: [
+        {
+          name: 'acs-connection-string'
+          value: communicationService.listKeys().primaryConnectionString
+        }
+      ]
       registries: [
         {
           server: acr.properties.loginServer
@@ -303,6 +352,14 @@ resource workerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWorker) 
             {
               name: 'Notification__EmailTo'
               value: notificationEmail
+            }
+            {
+              name: 'Notification__EmailFrom'
+              value: 'DoNotReply@${emailDomain.properties.mailFromSenderDomain}'
+            }
+            {
+              name: 'Notification__AcsConnectionString'
+              secretRef: 'acs-connection-string'
             }
             {
               name: 'AZURE_CLIENT_ID'
