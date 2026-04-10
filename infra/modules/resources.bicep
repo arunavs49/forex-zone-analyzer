@@ -362,6 +362,58 @@ resource workerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWorker) 
               secretRef: 'acs-connection-string'
             }
             {
+              name: 'MonitorSettings__Instruments__0'
+              value: 'EUR_USD'
+            }
+            {
+              name: 'MonitorSettings__Instruments__1'
+              value: 'GBP_USD'
+            }
+            {
+              name: 'MonitorSettings__Instruments__2'
+              value: 'USD_JPY'
+            }
+            {
+              name: 'MonitorSettings__Instruments__3'
+              value: 'AUD_USD'
+            }
+            {
+              name: 'MonitorSettings__ZoneGranularity'
+              value: 'M15'
+            }
+            {
+              name: 'MonitorSettings__TrendGranularity'
+              value: 'H1'
+            }
+            {
+              name: 'MonitorSettings__PollIntervalMinutes'
+              value: '15'
+            }
+            {
+              name: 'MonitorSettings__CandleCacheSize'
+              value: '2000'
+            }
+            {
+              name: 'MonitorSettings__CandleOverlapCount'
+              value: '5'
+            }
+            {
+              name: 'ZoneConfiguration__MinBaseLength'
+              value: '1'
+            }
+            {
+              name: 'ZoneConfiguration__MaxBaseLength'
+              value: '6'
+            }
+            {
+              name: 'ZoneConfiguration__MinLegInToBaseRangeRatio'
+              value: '1.0'
+            }
+            {
+              name: 'ZoneConfiguration__MinLegOutToBaseRangeRatio'
+              value: '1.0'
+            }
+            {
               name: 'AZURE_CLIENT_ID'
               value: managedIdentity.properties.clientId
             }
