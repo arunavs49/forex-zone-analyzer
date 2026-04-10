@@ -26,6 +26,12 @@ param imageTag string = 'latest'
 @description('Deploy the Container App (set to false for initial infra-only deployment)')
 param deployApp bool = true
 
+@description('Deploy the Worker Container App')
+param deployWorker bool = true
+
+@description('Notification email address for zone alerts')
+param notificationEmail string = ''
+
 var resourceGroupName = 'rg-${baseName}'
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-07-01' = {
@@ -45,6 +51,8 @@ module resources 'modules/resources.bicep' = {
     entraIdClientId: entraIdClientId
     imageTag: imageTag
     deployApp: deployApp
+    deployWorker: deployWorker
+    notificationEmail: notificationEmail
   }
 }
 
@@ -53,3 +61,4 @@ output containerAppFqdn string = deployApp ? resources.outputs.containerAppFqdn 
 output containerRegistryLoginServer string = resources.outputs.containerRegistryLoginServer
 output keyVaultName string = resources.outputs.keyVaultName
 output mcpEndpoint string = deployApp ? 'https://${resources.outputs.containerAppFqdn}/mcp' : 'not-deployed'
+output storageAccountName string = resources.outputs.storageAccountName

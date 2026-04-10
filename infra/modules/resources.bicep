@@ -23,6 +23,12 @@ param imageTag string
 @description('Deploy the Container App')
 param deployApp bool
 
+@description('Deploy the Worker Container App')
+param deployWorker bool
+
+@description('Notification email address')
+param notificationEmail string
+
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var acrName = replace('acr${baseName}${uniqueSuffix}', '-', '')
 var keyVaultName = 'kv-${baseName}-${take(uniqueSuffix, 6)}'
@@ -30,6 +36,8 @@ var managedIdentityName = 'id-${baseName}'
 var logAnalyticsName = 'log-${baseName}'
 var containerAppEnvName = 'cae-${baseName}'
 var containerAppName = 'ca-${baseName}'
+var workerAppName = 'ca-${baseName}-worker'
+var storageAccountName = replace('st${baseName}${take(uniqueSuffix, 8)}', '-', '')
 
 // User-assigned managed identity for the Container App
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
@@ -105,6 +113,32 @@ resource oandaSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   name: 'oanda-api-token'
   properties: {
     value: oandaApiToken
+  }
+}
+
+// Storage Account for zone persistence
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: storageAccountName
+  location: location
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_LRS'
+  }
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+    supportsHttpsTrafficOnly: true
+  }
+}
+
+// Storage Table Data Contributor role for managed identity
+resource storageTableRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: storageAccount
+  name: guid(storageAccount.id, managedIdentity.id, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3') // Storage Table Data Contributor
+    principalId: managedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -216,7 +250,77 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) 
   }
 }
 
+// Worker Container App (no ingress — background processing only)
+resource workerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWorker) {
+  name: workerAppName
+  location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${managedIdentity.id}': {}
+    }
+  }
+  properties: {
+    managedEnvironmentId: containerAppEnv.id
+    configuration: {
+      registries: [
+        {
+          server: acr.properties.loginServer
+          identity: managedIdentity.id
+        }
+      ]
+    }
+    template: {
+      containers: [
+        {
+          name: 'worker'
+          image: '${acr.properties.loginServer}/forex-worker:${imageTag}'
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+          env: [
+            {
+              name: 'KeyVault__Uri'
+              value: keyVault.properties.vaultUri
+            }
+            {
+              name: 'KeyVault__OandaTokenSecretName'
+              value: 'oanda-api-token'
+            }
+            {
+              name: 'Oanda__ConnectionType'
+              value: oandaConnectionType
+            }
+            {
+              name: 'Storage__AccountName'
+              value: storageAccount.name
+            }
+            {
+              name: 'Storage__TableName'
+              value: 'zones'
+            }
+            {
+              name: 'Notification__EmailTo'
+              value: notificationEmail
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: managedIdentity.properties.clientId
+            }
+          ]
+        }
+      ]
+      scale: {
+        minReplicas: 1
+        maxReplicas: 1
+      }
+    }
+  }
+}
+
 output containerAppFqdn string = deployApp ? containerApp.properties.configuration.ingress.fqdn : 'not-deployed'
 output containerRegistryLoginServer string = acr.properties.loginServer
 output keyVaultName string = keyVault.name
 output managedIdentityClientId string = managedIdentity.properties.clientId
+output storageAccountName string = storageAccount.name

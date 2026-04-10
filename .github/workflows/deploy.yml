@@ -11,7 +11,9 @@ permissions:
 env:
   ACR_NAME: acrforexmcpxo6r7fsqmrtrg
   IMAGE_NAME: forex-mcp-server
+  WORKER_IMAGE_NAME: forex-worker
   CONTAINER_APP_NAME: ca-forex-mcp
+  WORKER_APP_NAME: ca-forex-mcp-worker
   RESOURCE_GROUP: rg-forex-mcp
 
 jobs:
@@ -52,7 +54,7 @@ jobs:
       - name: Login to ACR
         run: az acr login --name $ACR_NAME
 
-      - name: Build and push image
+      - name: Build and push MCP server image
         run: |
           IMAGE_TAG="${{ github.sha }}"
           docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$IMAGE_TAG -t $ACR_NAME.azurecr.io/$IMAGE_NAME:latest .
@@ -60,9 +62,23 @@ jobs:
           docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:latest
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-      - name: Deploy to Container Apps
+      - name: Build and push Worker image
+        run: |
+          IMAGE_TAG="${{ github.sha }}"
+          docker build -f Dockerfile.worker -t $ACR_NAME.azurecr.io/$WORKER_IMAGE_NAME:$IMAGE_TAG -t $ACR_NAME.azurecr.io/$WORKER_IMAGE_NAME:latest .
+          docker push $ACR_NAME.azurecr.io/$WORKER_IMAGE_NAME:$IMAGE_TAG
+          docker push $ACR_NAME.azurecr.io/$WORKER_IMAGE_NAME:latest
+
+      - name: Deploy MCP server to Container Apps
         run: |
           az containerapp update \
             --name $CONTAINER_APP_NAME \
             --resource-group $RESOURCE_GROUP \
             --image $ACR_NAME.azurecr.io/$IMAGE_NAME:$IMAGE_TAG
+
+      - name: Deploy Worker to Container Apps
+        run: |
+          az containerapp update \
+            --name $WORKER_APP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --image $ACR_NAME.azurecr.io/$WORKER_IMAGE_NAME:$IMAGE_TAG 2>/dev/null || echo "Worker app not yet provisioned — skipping"
