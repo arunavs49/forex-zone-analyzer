@@ -50,6 +50,12 @@ public class ZoneMonitorService : BackgroundService
             .Select(i => Enum.Parse<InstrumentName>(i, ignoreCase: true))
             .ToArray();
 
+        // Wait for the first candle-aligned slot before starting
+        var initialDelay = GetDelayUntilNextSlot();
+        _logger.LogInformation("Waiting {Delay} until first candle-aligned slot at {NextRun:HH:mm:ss} UTC",
+            initialDelay, DateTime.UtcNow + initialDelay);
+        await Task.Delay(initialDelay, stoppingToken);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -68,11 +74,41 @@ public class ZoneMonitorService : BackgroundService
                 _logger.LogError(ex, "Error during zone monitoring cycle");
             }
 
-            _logger.LogInformation("Cycle complete. Next poll in {Minutes} minutes.", _monitorSettings.PollIntervalMinutes);
-            await Task.Delay(TimeSpan.FromMinutes(_monitorSettings.PollIntervalMinutes), stoppingToken);
+            var delay = GetDelayUntilNextSlot();
+            _logger.LogInformation("Cycle complete. Next poll at {NextRun:HH:mm:ss} UTC (in {Delay})",
+                DateTime.UtcNow + delay, delay);
+            await Task.Delay(delay, stoppingToken);
         }
 
         _logger.LogInformation("Zone Monitor stopping.");
+    }
+
+    /// <summary>
+    /// Calculates delay until 1 minute after the next M15 candle close.
+    /// M15 candles close at :00, :15, :30, :45 — we run at :01, :16, :31, :46.
+    /// </summary>
+    internal static TimeSpan GetDelayUntilNextSlot()
+    {
+        return GetDelayUntilNextSlot(DateTime.UtcNow);
+    }
+
+    internal static TimeSpan GetDelayUntilNextSlot(DateTime utcNow)
+    {
+        const int intervalMinutes = 15;
+        const int offsetMinutes = 1;
+
+        // Find the start of the current 15-min slot (floor to :00, :15, :30, :45)
+        var slotStart = utcNow.Date.AddHours(utcNow.Hour)
+            .AddMinutes(utcNow.Minute / intervalMinutes * intervalMinutes);
+
+        // Target is slotStart + offset (e.g., :01, :16, :31, :46)
+        var target = slotStart.AddMinutes(offsetMinutes);
+
+        // If we're already past the target in this slot, move to next slot
+        if (utcNow >= target)
+            target = target.AddMinutes(intervalMinutes);
+
+        return target - utcNow;
     }
 
     private async Task ProcessInstrumentAsync(
