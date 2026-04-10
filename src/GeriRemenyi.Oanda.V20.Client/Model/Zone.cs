@@ -37,6 +37,8 @@ namespace GeriRemenyi.Oanda.V20.Client.Model
         public ZoneFreshness Freshness { get; set; }
         [DataMember(Name = "worked", EmitDefaultValue = false)]
         public bool? Worked { get; set; }
+        [DataMember(Name = "subZone", EmitDefaultValue = false)]
+        public bool SubZone { get; set; }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -58,6 +60,7 @@ namespace GeriRemenyi.Oanda.V20.Client.Model
             sb.Append("  BaseCandleCount: ").Append(BaseCandleCount).Append("\n");
             sb.Append("  Freshness: ").Append(Freshness).Append("\n");
             sb.Append("  Worked: ").Append(Worked).Append("\n");
+            sb.Append("  SubZone: ").Append(SubZone).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
