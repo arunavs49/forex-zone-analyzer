@@ -44,23 +44,42 @@ public class EmailNotificationService : INotificationService
 
         var plainText = ConsoleNotificationService.FormatAlert(instrument, granularity, zone, trend);
 
+        var emailMessage = new EmailMessage(
+            senderAddress: _fromEmail,
+            recipientAddress: _toEmail,
+            content: new EmailContent(subject)
+            {
+                Html = htmlContent,
+                PlainText = plainText
+            });
+
         try
         {
-            var emailMessage = new EmailMessage(
-                senderAddress: _fromEmail,
-                recipientAddress: _toEmail,
-                content: new EmailContent(subject)
-                {
-                    Html = htmlContent,
-                    PlainText = plainText
-                });
-
-            var operation = await _emailClient.SendAsync(Azure.WaitUntil.Completed, emailMessage, cancellationToken);
-            _logger.LogInformation("Email sent for {Instrument} {Type} zone. Status: {Status}", instrument, zone.Type, operation.Value.Status);
+            await SendWithRetryAsync(emailMessage, cancellationToken);
+            _logger.LogInformation("Email sent for {Instrument} {Type} zone", instrument, zone.Type);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email notification for {Instrument} {Type} zone", instrument, zone.Type);
+            _logger.LogError(ex, "Failed to send email notification for {Instrument} {Type} zone after retries", instrument, zone.Type);
+        }
+    }
+
+    private async Task SendWithRetryAsync(EmailMessage message, CancellationToken cancellationToken)
+    {
+        const int maxRetries = 3;
+        for (int attempt = 0; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                await _emailClient.SendAsync(Azure.WaitUntil.Completed, message, cancellationToken);
+                return;
+            }
+            catch (Exception) when (attempt < maxRetries && !cancellationToken.IsCancellationRequested)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt + 1)); // 2s, 4s, 8s
+                _logger.LogWarning("Email send attempt {Attempt} failed, retrying in {Delay}s", attempt + 1, delay.TotalSeconds);
+                await Task.Delay(delay, cancellationToken);
+            }
         }
     }
 }

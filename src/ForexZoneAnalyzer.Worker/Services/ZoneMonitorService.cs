@@ -114,14 +114,21 @@ public class ZoneMonitorService : BackgroundService
                 freshZones.Count(z => z.Type == ZoneType.Supply),
                 freshZones.Count(z => z.Type == ZoneType.Demand));
 
-            // 6. Send notifications for new zones
+            // 6. Send notifications for new zones that are not broken
             if (newZones.Count > 0)
             {
-                var trend = await GetTrendAsync(instrument, trendGranularity, cancellationToken);
+                var activeNewZones = newZones.Where(z => z.Freshness != ZoneFreshness.Broken).ToList();
+                _logger.LogInformation("{Instrument}: {Active} active new zones (skipped {Broken} broken)",
+                    instrumentName, activeNewZones.Count, newZones.Count - activeNewZones.Count);
 
-                foreach (var zone in newZones)
+                if (activeNewZones.Count > 0)
                 {
-                    await _notificationService.SendZoneAlertAsync(instrumentName, granularityStr, zone, trend, cancellationToken);
+                    var trend = await GetTrendAsync(instrument, trendGranularity, cancellationToken);
+
+                    foreach (var zone in activeNewZones)
+                    {
+                        await _notificationService.SendZoneAlertAsync(instrumentName, granularityStr, zone, trend, cancellationToken);
+                    }
                 }
             }
         }
