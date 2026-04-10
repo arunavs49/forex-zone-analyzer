@@ -16,15 +16,22 @@ public class TableStorageZoneStore : IZoneStore
         var connectionString = configuration["Storage:ConnectionString"];
         var tableName = configuration["Storage:TableName"] ?? "zones";
 
+        var clientOptions = new TableClientOptions();
+        clientOptions.Retry.MaxRetries = 5;
+        clientOptions.Retry.Mode = Azure.Core.RetryMode.Exponential;
+        clientOptions.Retry.Delay = TimeSpan.FromSeconds(1);
+        clientOptions.Retry.MaxDelay = TimeSpan.FromSeconds(30);
+        clientOptions.Retry.NetworkTimeout = TimeSpan.FromSeconds(60);
+
         if (!string.IsNullOrEmpty(connectionString))
         {
-            _tableClient = new TableClient(connectionString, tableName);
+            _tableClient = new TableClient(connectionString, tableName, clientOptions);
         }
         else
         {
             var storageAccountName = configuration["Storage:AccountName"];
             var endpoint = new Uri($"https://{storageAccountName}.table.core.windows.net");
-            _tableClient = new TableClient(endpoint, tableName, new DefaultAzureCredential());
+            _tableClient = new TableClient(endpoint, tableName, new DefaultAzureCredential(), clientOptions);
         }
 
         _tableClient.CreateIfNotExists();
@@ -35,13 +42,21 @@ public class TableStorageZoneStore : IZoneStore
         var partitionKey = $"{instrument}_{granularity}";
         var zones = new List<Zone>();
 
-        await foreach (var entity in _tableClient.QueryAsync<TableEntity>(
-            filter: $"PartitionKey eq '{partitionKey}'",
-            cancellationToken: cancellationToken))
+        try
         {
-            var zone = DeserializeZone(entity);
-            if (zone != null)
-                zones.Add(zone);
+            await foreach (var entity in _tableClient.QueryAsync<TableEntity>(
+                filter: $"PartitionKey eq '{partitionKey}'",
+                cancellationToken: cancellationToken))
+            {
+                var zone = DeserializeZone(entity);
+                if (zone != null)
+                    zones.Add(zone);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Table Storage query failed for {Partition}, treating as empty", partitionKey);
+            return new List<Zone>();
         }
 
         _logger.LogDebug("Loaded {Count} zones from Table Storage for {Partition}", zones.Count, partitionKey);
