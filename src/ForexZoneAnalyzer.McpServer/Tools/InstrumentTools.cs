@@ -90,20 +90,18 @@ public sealed class InstrumentTools
         var inst = connection.GetInstrument(instrumentName);
         var candles = await inst.GetLastNCandlesAsync(gran, count, new[] { PricingComponent.Mid });
 
-        var orderedCandles = candles
-            .OrderBy(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture));
-
-        var zoneFinder = ZoneFinder.Create(orderedCandles);
-        var zones = zoneFinder.GetAllZones();
+        var zoneManager = ZoneManager.Create(candles, new ZoneConfiguration());
+        var supplyZones = zoneManager.GetSupplyZones();
+        var demandZones = zoneManager.GetDemandZones();
 
         var result = new
         {
             Instrument = instrument,
             Granularity = granularity,
             CandlesAnalyzed = candles.Count(),
-            TotalZones = zones.Count,
-            SupplyZones = zones.Where(z => z.Type == ZoneType.Supply).Select(FormatZone).ToList(),
-            DemandZones = zones.Where(z => z.Type == ZoneType.Demand).Select(FormatZone).ToList()
+            TotalZones = supplyZones.Count + demandZones.Count,
+            SupplyZones = supplyZones.Select(FormatZone).ToList(),
+            DemandZones = demandZones.Select(FormatZone).ToList()
         };
 
         return JsonConvert.SerializeObject(result, Formatting.Indented);
