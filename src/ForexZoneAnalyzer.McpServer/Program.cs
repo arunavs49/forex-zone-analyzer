@@ -41,7 +41,7 @@ app.UseAuthorization();
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
 // MCP endpoint — authenticated in production, open in development
-var mcpEndpoint = app.MapMcp();
+var mcpEndpoint = app.MapMcp("/mcp");
 if (requireAuth)
 {
     mcpEndpoint.RequireAuthorization();
