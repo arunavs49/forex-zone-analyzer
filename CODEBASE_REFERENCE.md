@@ -10,17 +10,32 @@
 | Aspect        | Details |
 |---------------|---------|
 | **Language**  | C# (.NET 10) |
-| **Solution**  | `src/ZoneAnalyzer.sln` — 7 projects |
+| **Solution**  | `src/ZoneAnalyzer.sln` — 11 projects |
 | **Broker**    | OANDA V20 REST API |
-| **Auth**      | Bearer token (Personal Access Token) |
+| **Auth**      | Bearer token (OANDA), Entra ID (MCP server) |
+| **Hosting**   | Azure Container Apps |
+| **Infra**     | Bicep (IaC) |
+| **CI/CD**     | GitHub Actions (OIDC federated credentials) |
 | **Core Idea** | Detect supply/demand zones from candlestick patterns and trend direction to identify trade setups |
 
 ### Architecture Diagram
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                   Sdk.Playground (Console App)               │
-│         Interactive menus: accounts, instruments, trades     │
+│               ForexZoneAnalyzer.McpServer                    │
+│         MCP server: 11 tools for zone analysis               │
+│         (Azure Container Apps + Entra ID auth)               │
+├──────────────────────────────────────────────────────────────┤
+│               ForexZoneAnalyzer.Worker                        │
+│         Background zone monitor + email alerts                │
+│         (Azure Container Apps, no ingress)                    │
+│         • ZoneMonitorService (polling loop)                   │
+│         • CandleCacheService (2000 sliding window)            │
+│         • IZoneStore (Table Storage / in-memory)              │
+│         • INotificationService (ACS Email / console)          │
+├──────────────────────────────────────────────────────────────┤
+│               Sdk.Playground (Console App)                    │
+│         Interactive menus: accounts, instruments, trades      │
 ├──────────────────────────┬───────────────────────────────────┤
 │  ZoneAnalyzer            │  GeriRemenyi.Oanda.V20.Sdk        │
 │  .PatternAnalysis        │  (SDK wrapper)                    │
@@ -44,6 +59,15 @@
                                     ▼
                         OANDA V20 REST API
                    (fxpractice / fxtrade servers)
+
+Azure Infrastructure (Bicep):
+┌────────────────────────────────────────────────────────┐
+│  Container Apps Environment                             │
+│  ├── ca-forex-mcp (MCP server, external ingress)       │
+│  └── ca-forex-mcp-worker (worker, no ingress)          │
+├────────────────────────────────────────────────────────┤
+│  ACR │ Key Vault │ Storage Account │ ACS Email │ MI    │
+└────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -82,6 +106,7 @@
 | `CandlestickGranularity` (enum) | S5 through M (monthly) timeframes |
 | `ZoneType` (enum) | Supply / Demand zone classification |
 | `ZoneFreshness` (enum) | Untested / Tested / Broken zone lifecycle |
+| `Zone` | Zone model with Type, BaseRange, Freshness, Worked, SubZone, Quarters Theory |
 
 #### Authentication
 
@@ -325,7 +350,9 @@ Main Menu
 | Project | Status |
 |---------|--------|
 | `Client.Test` | Auto-generated xUnit stubs — 1250 tests (mostly `// TODO` bodies that pass) |
-| `PatternAnalysis.Test` | **15 real tests:** 4 ZoneManager tests (supply zones, sample data), 7 ZoneFinder freshness/worked tests (all supply/demand × untested/tested/broken combinations), 3 base overlap tolerance tests (absorbed/not-absorbed/boundary), 1 debug trace |
+| `PatternAnalysis.Test` | **22 real tests:** 4 ZoneManager, 7 ZoneFinder freshness/worked, 3 base overlap, 8 sub-zone detection |
+| `McpServer.Test` | **20 tests:** MCP tool integration tests |
+| `Worker.Test` | **28 tests:** InMemoryZoneStore, ConsoleNotificationService, MonitorSettings, zone change detection |
 
 #### Test Coverage
 
@@ -334,6 +361,11 @@ Main Menu
 | `ZoneManagerTests` | 4 | Zone detection with sample JSON data, basic instantiation |
 | `ZoneFinderFreshnessTests` | 7 | Freshness (Untested/Tested/Broken) and Worked (null/true/false) for supply and demand zones |
 | `ZoneFinderBaseOverlapTests` | 3 | Base absorption of overlapping excited candles at 75% threshold |
+| `ZoneFinderSubZoneTests` | 8 | Sub-zone detection: same-type overlap ≥10%, cross-type no match, broken zones excluded |
+| `InMemoryZoneStoreTests` | 7 | Upsert/get round-trip, overwrite, instrument/granularity isolation, copy semantics |
+| `ConsoleNotificationServiceTests` | 7 | FormatAlert output: instrument, type, trend, range, freshness, sub-zone |
+| `MonitorSettingsTests` | 6 | Default config values (instruments, granularities, poll interval, cache size) |
+| `ZoneChangeDetectionTests` | 10 | Zone key generation, change detection diffing (new/existing/all-new/none-new) |
 
 ---
 

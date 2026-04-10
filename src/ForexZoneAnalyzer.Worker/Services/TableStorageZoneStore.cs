@@ -74,8 +74,8 @@ public class TableStorageZoneStore : IZoneStore
         return new TableEntity(partitionKey, GetRowKey(zone))
         {
             { "Type", zone.Type.ToString() },
-            { "StartTime", zone.StartTime },
-            { "EndTime", zone.EndTime },
+            { "StartTime", DateTime.SpecifyKind(zone.StartTime, DateTimeKind.Utc) },
+            { "EndTime", DateTime.SpecifyKind(zone.EndTime, DateTimeKind.Utc) },
             { "LegInStartPrice", zone.LegInStartPrice },
             { "LegInEndPrice", zone.LegInEndPrice },
             { "LegOutStartPrice", zone.LegOutStartPrice },
