@@ -23,6 +23,9 @@ param entraIdClientId string
 @description('Container image tag')
 param imageTag string = 'latest'
 
+@description('Deploy the Container App (set to false for initial infra-only deployment)')
+param deployApp bool = true
+
 var resourceGroupName = 'rg-${baseName}'
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-07-01' = {
@@ -41,11 +44,12 @@ module resources 'modules/resources.bicep' = {
     entraIdTenantId: entraIdTenantId
     entraIdClientId: entraIdClientId
     imageTag: imageTag
+    deployApp: deployApp
   }
 }
 
 output resourceGroupName string = rg.name
-output containerAppFqdn string = resources.outputs.containerAppFqdn
+output containerAppFqdn string = deployApp ? resources.outputs.containerAppFqdn : 'not-deployed'
 output containerRegistryLoginServer string = resources.outputs.containerRegistryLoginServer
 output keyVaultName string = resources.outputs.keyVaultName
-output mcpEndpoint string = 'https://${resources.outputs.containerAppFqdn}/mcp'
+output mcpEndpoint string = deployApp ? 'https://${resources.outputs.containerAppFqdn}/mcp' : 'not-deployed'

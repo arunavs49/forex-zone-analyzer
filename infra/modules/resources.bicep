@@ -20,6 +20,9 @@ param entraIdClientId string
 @description('Container image tag')
 param imageTag string
 
+@description('Deploy the Container App')
+param deployApp bool
+
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var acrName = replace('acr${baseName}${uniqueSuffix}', '-', '')
 var keyVaultName = 'kv-${baseName}-${take(uniqueSuffix, 6)}'
@@ -120,8 +123,8 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-// Container App
-resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
+// Container App (conditional - skip on initial infra-only deployment)
+resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) {
   name: containerAppName
   location: location
   identity: {
@@ -213,7 +216,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
-output containerAppFqdn string = containerApp.properties.configuration.ingress.fqdn
+output containerAppFqdn string = deployApp ? containerApp.properties.configuration.ingress.fqdn : 'not-deployed'
 output containerRegistryLoginServer string = acr.properties.loginServer
 output keyVaultName string = keyVault.name
 output managedIdentityClientId string = managedIdentity.properties.clientId

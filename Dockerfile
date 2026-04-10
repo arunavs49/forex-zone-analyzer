@@ -12,6 +12,7 @@ COPY src/ForexZoneAnalyzer.McpServer/ForexZoneAnalyzer.McpServer.csproj ForexZon
 COPY src/GeriRemenyi.Oanda.V20.Client.Test/GeriRemenyi.Oanda.V20.Client.Test.csproj GeriRemenyi.Oanda.V20.Client.Test/
 COPY src/ZoneAnalyzer.PatternAnalysis.Test/ZoneAnalyzer.PatternAnalysis.Test.csproj ZoneAnalyzer.PatternAnalysis.Test/
 COPY src/GeriRemenyi.Oanda.V20.Sdk.Playground/GeriRemenyi.Oanda.V20.Sdk.Playground.csproj GeriRemenyi.Oanda.V20.Sdk.Playground/
+COPY src/ForexZoneAnalyzer.McpServer.Test/ForexZoneAnalyzer.McpServer.Test.csproj ForexZoneAnalyzer.McpServer.Test/
 
 RUN dotnet restore ForexZoneAnalyzer.McpServer/ForexZoneAnalyzer.McpServer.csproj
 

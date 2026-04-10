@@ -14,12 +14,11 @@
     }
 
     // ── Remote Azure deployment ────────────────────────────────────────
-    // Uncomment after deploying to Azure and update the placeholders.
-    // Requires: az login, APP_CLIENT_ID env var set.
+    // Requires: az login (uses your identity to get a token).
     //
     // "forex-zone-analyzer-remote": {
     //   "type": "http",
-    //   "url": "https://<CONTAINER_APP_FQDN>/mcp",
+    //   "url": "https://ca-forex-mcp.gentlegrass-9ef0e688.eastus2.azurecontainerapps.io/mcp",
     //   "headers": {
     //     "Authorization": "Bearer ${command:./scripts/get-mcp-token.sh}"
     //   }
