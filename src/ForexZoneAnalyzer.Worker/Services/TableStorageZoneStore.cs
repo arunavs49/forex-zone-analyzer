@@ -96,8 +96,8 @@ public class TableStorageZoneStore : IZoneStore
             return new Zone
             {
                 Type = Enum.Parse<ZoneType>(entity.GetString("Type")),
-                StartTime = entity.GetDateTimeOffset("StartTime")?.UtcDateTime ?? DateTime.MinValue,
-                EndTime = entity.GetDateTimeOffset("EndTime")?.UtcDateTime ?? DateTime.MinValue,
+                StartTime = entity.GetDateTimeOffset("StartTime")?.LocalDateTime ?? DateTime.MinValue,
+                EndTime = entity.GetDateTimeOffset("EndTime")?.LocalDateTime ?? DateTime.MinValue,
                 LegInStartPrice = entity.GetDouble("LegInStartPrice") ?? 0,
                 LegInEndPrice = entity.GetDouble("LegInEndPrice") ?? 0,
                 LegOutStartPrice = entity.GetDouble("LegOutStartPrice") ?? 0,

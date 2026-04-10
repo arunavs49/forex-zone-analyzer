@@ -385,14 +385,12 @@ Main Menu
 
 | Area | Current State | What's Needed |
 |------|---------------|---------------|
-| **Caching** | `CachedInstrument` is a no-op wrapper | Add real caching for backtesting (file/SQLite/Redis) |
-| **Notifications** | None | Add alerts (email, SMS, push, Telegram) when zones form near price |
+| **Caching** | ✅ Worker has `CandleCacheService` (2000 sliding window) | `CachedInstrument` in DataProvider is still a no-op; consider unifying |
+| **Notifications** | ✅ ACS Email + console fallback in Worker | Add more channels (SMS, Telegram, push) |
 | **Backtesting** | None | Build historical simulation engine using cached candle data |
 | **Trade Setup** | Manual via console prompts | Automate: detect zone + trend → generate trade parameters |
-| **Configuration** | Hardcoded / console prompts | Use config files / environment variables |
-| **Zone Bug** | ✅ Fixed | `IsMatch()` now uses correct ratio per leg |
-| **Tests** | 15 real tests added | Freshness, worked, base overlap, zone detection |
-| **Target Framework** | ✅ .NET 10 | Upgraded from .NET Core 3.1 |
+| **Configuration** | ✅ Worker uses `appsettings.json` + env vars; MCP uses Key Vault | Playground still uses console prompts |
+| **Secret Management** | ✅ Azure Key Vault + Container App secrets | Playground still uses `Config.txt` |
 | **Zone Validation** | TODO in source | Check if zone is on correct side of current price |
 
 ### 3.3 Key Interfaces to Program Against
@@ -448,29 +446,69 @@ var trend = TrendManager.Create(candles);
 ## 5. File Inventory
 
 ```
-src/
-├── ZoneAnalyzer.sln
-├── GeriRemenyi.Oanda.V20.Client/          # ~202 files (auto-generated)
-│   ├── Api/                                # 7 API endpoint classes
-│   ├── Client/                             # 15 HTTP runtime classes
-│   └── Model/                              # 180 DTO/enum classes
-├── GeriRemenyi.Oanda.V20.Client.Test/      # Generated test stubs
-├── GeriRemenyi.Oanda.V20.Sdk/              # 21 files
-│   ├── Account/                            # Account.cs, IAccount.cs
-│   ├── Instrument/                         # Instrument.cs, IInstrument.cs
-│   ├── Trade/                              # Trades.cs, ITrades.cs, TradeDirection.cs
-│   └── Common/                             # Extensions, Exceptions, Types
-├── GeriRemenyi.Oanda.V20.Sdk.Playground/   # 8 files (console demo)
-├── ZoneAnalyzer.DataProvider/              # 2 files (CachedInstrument wrapper)
-├── ZoneAnalyzer.PatternAnalysis/           # 7 files (core analysis)
-│   ├── ZoneManager.cs                      # Orchestrator
-│   ├── ZoneFinder.cs                       # State machine zone detector
-│   ├── TrendManager.cs                     # Linear regression trend
-│   ├── CandlestickShape.cs                 # Candle classification enum
-│   ├── CandlestickDataExtensions.cs        # Shape classification logic
-│   ├── ZoneConfiguration.cs                # Zone filter config
-│   └── SampleCandleSticks.json             # Test fixture data
-└── ZoneAnalyzer.PatternAnalysis.Test/      # 3 files (minimal tests)
+├── .github/
+│   └── workflows/
+│       └── deploy.yml                      # CI/CD: test → deploy (Bicep + ACR + Container Apps)
+├── infra/
+│   ├── main.bicep                          # Subscription-level orchestrator
+│   └── modules/
+│       └── resources.bicep                 # All Azure resources (ACR, Key Vault, Storage, ACS,
+│                                           #   Email Service, Container Apps Env, MCP app, worker app)
+├── scripts/
+│   └── deploy.sh                           # Manual deployment helper
+├── Dockerfile                              # MCP server multi-stage build
+├── Dockerfile.worker                       # Worker service multi-stage build
+└── src/
+    ├── ZoneAnalyzer.sln
+    ├── GeriRemenyi.Oanda.V20.Client/          # ~202 files (auto-generated)
+    │   ├── Api/                                # 7 API endpoint classes
+    │   ├── Client/                             # 15 HTTP runtime classes
+    │   └── Model/                              # 180 DTO/enum classes (incl. Zone.cs with SubZone)
+    ├── GeriRemenyi.Oanda.V20.Client.Test/      # Generated test stubs (1250 tests)
+    ├── GeriRemenyi.Oanda.V20.Sdk/              # 21 files
+    │   ├── Account/                            # Account.cs, IAccount.cs
+    │   ├── Instrument/                         # Instrument.cs, IInstrument.cs
+    │   ├── Trade/                              # Trades.cs, ITrades.cs, TradeDirection.cs
+    │   └── Common/                             # Extensions, Exceptions, Types
+    ├── GeriRemenyi.Oanda.V20.Sdk.Playground/   # 8 files (console demo)
+    ├── ZoneAnalyzer.DataProvider/              # 2 files (CachedInstrument wrapper)
+    ├── ZoneAnalyzer.PatternAnalysis/           # 7 files (core analysis)
+    │   ├── ZoneManager.cs                      # Orchestrator
+    │   ├── ZoneFinder.cs                       # State machine + EvaluateSubZones()
+    │   ├── TrendManager.cs                     # Linear regression trend
+    │   ├── CandlestickShape.cs                 # Candle classification enum
+    │   ├── CandlestickDataExtensions.cs        # Shape classification logic
+    │   ├── ZoneConfiguration.cs                # Zone filter config (MaxBaseLength=6)
+    │   └── SampleCandleSticks.json             # Test fixture data
+    ├── ZoneAnalyzer.PatternAnalysis.Test/      # 4 test classes (22 tests)
+    │   ├── ZoneManagerTests.cs
+    │   ├── ZoneFinderFreshnessTests.cs
+    │   ├── ZoneFinderBaseOverlapTests.cs
+    │   └── ZoneFinderSubZoneTests.cs
+    ├── ForexZoneAnalyzer.McpServer/            # MCP server (11 tools)
+    │   ├── Program.cs                          # Host builder, Entra ID auth, MapMcp("/mcp")
+    │   └── Tools/
+    │       └── InstrumentTools.cs              # All 11 MCP tool methods
+    ├── ForexZoneAnalyzer.McpServer.Test/       # 20 integration tests
+    ├── ForexZoneAnalyzer.Worker/               # Background zone monitor
+    │   ├── Program.cs                          # Host builder, DI wiring
+    │   ├── Configuration/
+    │   │   └── MonitorSettings.cs              # Config POCO (instruments, intervals)
+    │   └── Services/
+    │       ├── ZoneMonitorService.cs           # BackgroundService polling loop
+    │       ├── CandleCacheService.cs           # Incremental 2000-candle cache
+    │       ├── OandaConnectionService.cs       # OANDA connection singleton
+    │       ├── IZoneStore.cs                   # Zone persistence interface
+    │       ├── InMemoryZoneStore.cs            # Dev zone store
+    │       ├── TableStorageZoneStore.cs        # Azure Table Storage zone store
+    │       ├── INotificationService.cs         # Notification interface
+    │       ├── ConsoleNotificationService.cs   # Console output (dev)
+    │       └── EmailNotificationService.cs     # ACS Email (production)
+    └── ForexZoneAnalyzer.Worker.Test/          # 28 tests
+        ├── InMemoryZoneStoreTests.cs
+        ├── ConsoleNotificationServiceTests.cs
+        ├── MonitorSettingsTests.cs
+        └── ZoneChangeDetectionTests.cs
 ```
 
 ---
@@ -480,10 +518,18 @@ src/
 | Package | Version | Used By | Purpose |
 |---------|---------|---------|---------|
 | RestSharp | 112.1.0 | Client | HTTP requests to OANDA |
-| Newtonsoft.Json | 13.0.3 | Client | JSON serialization |
+| Newtonsoft.Json | 13.0.3 | Client, Worker | JSON serialization |
 | JsonSubTypes | 2.0.0 | Client | Polymorphic deserialization |
 | System.ComponentModel.Annotations | 5.0.0 | Client | Model validation |
 | MathNet.Numerics | 5.0.0 | PatternAnalysis | Polynomial fitting for trend detection |
+| ModelContextProtocol | 0.1.0-preview.13 | McpServer | MCP protocol server implementation |
+| Microsoft.Identity.Web | 3.8.5 | McpServer | Entra ID JWT bearer authentication |
+| Azure.Identity | 1.14.2 | McpServer, Worker | DefaultAzureCredential for Azure auth |
+| Azure.Security.KeyVault.Secrets | 4.7.0 | McpServer | OANDA token retrieval from Key Vault |
+| Azure.Data.Tables | 12.9.1 | Worker | Azure Table Storage for zone persistence |
+| Azure.Communication.Email | 1.0.1 | Worker | ACS email notifications |
+| Microsoft.Extensions.Hosting | 10.0.0 | Worker | .NET 10 Worker SDK BackgroundService |
+| Microsoft.Extensions.Caching.Memory | 10.0.0 | Worker | In-memory candle cache |
 | xUnit | 2.9.3 | Test projects | Unit testing |
 
 ---
@@ -497,41 +543,52 @@ src/
 3. ~~**Zero-range candle crash**~~ — Fixed: `GetShape()` guards `range > 0`, classifies zero-range as Boring
 4. ~~**DateTime culture-sensitivity**~~ — Fixed: all 29 `DateTime.Parse()` calls use `CultureInfo.InvariantCulture`
 5. ~~**Lazy LINQ re-evaluation**~~ — Fixed: supply/demand zone collections materialized with `.ToList()`
+6. ~~**EOL framework**~~ — ✅ Upgraded to .NET 10
+7. ~~**RestSharp vulnerability**~~ — ✅ Upgraded to RestSharp 112.1.0
+8. ~~**No caching**~~ — ✅ Worker has `CandleCacheService` with 2000-candle sliding window + incremental fetching
+9. ~~**No notifications**~~ — ✅ ACS Email notifications in Worker (HTML + plain text), console fallback in dev
+10. ~~**No configuration**~~ — ✅ Worker uses `appsettings.json` + environment variables; MCP server uses Key Vault
+11. ~~**Secret management**~~ — ✅ Azure Key Vault for OANDA token; Container App secrets for ACS connection string
 
 ### Remaining
 
-1. **No real caching** — `CachedInstrument` doesn't cache anything
-2. **No zone price validation** — TODO: check if zone is on correct side of current price
-3. ~~**EOL framework**~~ — ✅ Upgraded to .NET 10
-4. **Empty tests** — Client.Test has 1250 stub tests with `// TODO` bodies
-5. **No error handling in Playground** — minimal try/catch around API calls
-6. **Secret management** — `Config.txt` gitignored but no proper secret store
-7. **TrendManager fragility** — crashes with < 2 candles, returns string instead of enum (planned for redo)
-8. ~~**RestSharp vulnerability**~~ — ✅ Upgraded to RestSharp 112.1.0
+1. **No zone price validation** — TODO in source: check if zone is on correct side of current price
+2. **Empty tests** — Client.Test has 1,250 stub tests with `// TODO` bodies
+3. **No error handling in Playground** — minimal try/catch around API calls
+4. **TrendManager fragility** — crashes with < 2 candles, returns string instead of enum (planned for redo)
+5. **CachedInstrument no-op** — `CachedInstrument` in DataProvider still doesn't cache; Worker's `CandleCacheService` is separate
+6. **Playground secret handling** — still uses `Config.txt` (gitignored) instead of a proper secret store
+7. **Bicep warnings (non-blocking)** — `no-hardcoded-env-urls` for `login.microsoftonline.com`, `BCP318` for conditional null check
 
 ---
 
 ## 8. Recommendations for New Project
 
-### Architecture
+### Current Architecture (Implemented)
 
 ```
-New Project (forex-trade-engine)
-├── Core/                    # Reuse: ZoneFinder, TrendManager, CandlestickShape
-├── Data/                    # Enhanced: real caching layer for candles
-├── Broker/                  # Reuse: Oanda Client + SDK (upgrade to .NET 8)
-├── Strategy/                # NEW: trade setup rules, entry/exit logic
-├── Backtesting/             # NEW: historical simulation engine
-├── Notifications/           # NEW: alert system (Telegram, email, etc.)
-├── API/                     # NEW: REST/gRPC API for dashboards
-└── Tests/                   # NEW: comprehensive test suite
+forex-zone-analyzer
+├── PatternAnalysis/         # Zone detection, trend analysis, candle classification
+├── Oanda Client + SDK/      # Full OANDA V20 API: candles, accounts, trades
+├── MCP Server/              # 11 tools exposed via MCP protocol (Entra ID auth)
+├── Worker/                  # Background monitoring: cache → detect → notify
+│   ├── Caching/             # CandleCacheService (2000 sliding window)
+│   ├── Persistence/         # IZoneStore (Table Storage / in-memory)
+│   └── Notifications/       # INotificationService (ACS Email / console)
+├── Infra/                   # Bicep: ACR, Key Vault, Storage, ACS, Container Apps
+├── CI/CD/                   # GitHub Actions with OIDC + Bicep deploy
+└── Tests/                   # 1,320 tests across 4 test projects
 ```
 
-### Priority Migration Path
+### Potential Enhancements
 
-1. **Port PatternAnalysis** — ZoneFinder + TrendManager (core value)
-2. **Port SDK** — connection + candle fetching + trade execution
-3. **Add caching** — essential for backtesting without hammering OANDA API
-4. **Build strategy engine** — zone + trend → trade setup automation
-5. **Add notifications** — alert when trade setups form
-6. **Build backtester** — replay historical data through strategy engine
+| Priority | Enhancement | Details |
+|----------|-------------|---------|
+| High | **Backtesting engine** | Historical simulation using cached candle data to validate zone strategies |
+| High | **Trade setup automation** | Zone + trend + price proximity → automated trade parameter generation |
+| Medium | **Zone price validation** | Check if zone is on correct side of current price (TODO in source) |
+| Medium | **TrendManager rewrite** | Handle < 2 candles gracefully; return enum instead of string |
+| Medium | **More notification channels** | SMS, Telegram, push notifications via ACS or third-party |
+| Low | **Unify caching** | Merge `CachedInstrument` no-op with Worker's `CandleCacheService` |
+| Low | **Dashboard API** | REST/gRPC API for real-time zone visualization |
+| Low | **Clean up Client.Test** | Fill in 1,250 stub test bodies or remove stubs |
