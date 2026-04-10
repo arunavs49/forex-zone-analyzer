@@ -144,6 +144,7 @@ public sealed class InstrumentTools
         Type = z.Type.ToString(),
         Freshness = z.Freshness.ToString(),
         Worked = z.Worked,
+        SubZone = z.SubZone,
         BaseRangeHigh = z.BaseRangeHigh,
         BaseRangeLow = z.BaseRangeLow,
         BaseCandleCount = z.BaseCandleCount,

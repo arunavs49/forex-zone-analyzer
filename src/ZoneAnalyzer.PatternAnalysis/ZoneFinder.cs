@@ -284,6 +284,9 @@ namespace ZoneAnalyzer.PatternAnalysis
                 EvaluateZoneStatus(zone, candlestickList);
             }
 
+            // Third pass: detect sub-zones
+            EvaluateSubZones(zones, candlestickList);
+
             return zones;
         }
 
@@ -363,6 +366,73 @@ namespace ZoneAnalyzer.PatternAnalysis
             var overlap = Math.Max(0, overlapHigh - overlapLow);
 
             return overlap / candleRange >= BaseOverlapThreshold - FloatTolerance;
+        }
+
+        private const double SubZoneOverlapThreshold = 0.10;
+
+        private static void EvaluateSubZones(List<Zone> zones, List<Candlestick> candlesticks)
+        {
+            for (int i = 0; i < zones.Count; i++)
+            {
+                var newZone = zones[i];
+                newZone.SubZone = false;
+
+                for (int j = 0; j < i; j++)
+                {
+                    var priorZone = zones[j];
+
+                    // Sub-zones only apply within the same zone type
+                    if (priorZone.Type != newZone.Type)
+                        continue;
+
+                    // Prior zone must have formed before this zone started
+                    if (priorZone.EndTime >= newZone.StartTime)
+                        continue;
+
+                    // Prior zone must not have been broken by the time the new zone started forming
+                    if (IsZoneBrokenByTime(priorZone, candlesticks, newZone.StartTime))
+                        continue;
+
+                    // Check if new zone overlaps ≥10% of the prior zone's base range
+                    if (ZoneBasesOverlap(newZone, priorZone, SubZoneOverlapThreshold))
+                    {
+                        newZone.SubZone = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        private static bool IsZoneBrokenByTime(Zone zone, List<Candlestick> candlesticks, DateTime byTime)
+        {
+            foreach (var candle in candlesticks)
+            {
+                var candleTime = DateTime.Parse(candle.Time, CultureInfo.InvariantCulture);
+                if (candleTime <= zone.EndTime)
+                    continue;
+                if (candleTime >= byTime)
+                    break;
+
+                var data = candle.GetCandlestickData();
+
+                if (zone.Type == ZoneType.Supply && data.H > zone.BaseRangeHigh)
+                    return true;
+                if (zone.Type == ZoneType.Demand && data.L < zone.BaseRangeLow)
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool ZoneBasesOverlap(Zone a, Zone b, double threshold)
+        {
+            var bRange = b.BaseRangeHigh - b.BaseRangeLow;
+            if (bRange <= 0) return false;
+
+            var overlapHigh = Math.Min(a.BaseRangeHigh, b.BaseRangeHigh);
+            var overlapLow = Math.Max(a.BaseRangeLow, b.BaseRangeLow);
+            var overlap = Math.Max(0, overlapHigh - overlapLow);
+
+            return overlap / bRange >= threshold - FloatTolerance;
         }
 
         private enum ZoneBuildingState
