@@ -69,6 +69,20 @@ jobs:
           docker push $ACR_NAME.azurecr.io/$WORKER_IMAGE_NAME:$IMAGE_TAG
           docker push $ACR_NAME.azurecr.io/$WORKER_IMAGE_NAME:latest
 
+      - name: Deploy infrastructure (Bicep)
+        run: |
+          az deployment sub create \
+            --location eastus2 \
+            --template-file infra/main.bicep \
+            --parameters \
+              oandaApiToken="${{ secrets.OANDA_API_TOKEN }}" \
+              entraIdTenantId="${{ secrets.AZURE_TENANT_ID }}" \
+              entraIdClientId="${{ secrets.ENTRA_CLIENT_ID }}" \
+              imageTag="${{ github.sha }}" \
+              deployApp=true \
+              deployWorker=true \
+              notificationEmail="${{ secrets.NOTIFICATION_EMAIL }}"
+
       - name: Deploy MCP server to Container Apps
         run: |
           az containerapp update \
@@ -81,4 +95,4 @@ jobs:
           az containerapp update \
             --name $WORKER_APP_NAME \
             --resource-group $RESOURCE_GROUP \
-            --image $ACR_NAME.azurecr.io/$WORKER_IMAGE_NAME:$IMAGE_TAG 2>/dev/null || echo "Worker app not yet provisioned — skipping"
+            --image $ACR_NAME.azurecr.io/$WORKER_IMAGE_NAME:$IMAGE_TAG
