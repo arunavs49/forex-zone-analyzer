@@ -37,12 +37,6 @@ public class ZoneMonitorService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Zone Monitor starting. Instruments: [{Instruments}], Zone TF: {ZoneTF}, Trend TF: {TrendTF}, Poll: {Poll}min",
-            string.Join(", ", _monitorSettings.Instruments),
-            _monitorSettings.ZoneGranularity,
-            _monitorSettings.TrendGranularity,
-            _monitorSettings.PollIntervalMinutes);
-
         // Parse granularities once
         var zoneGranularity = Enum.Parse<CandlestickGranularity>(_monitorSettings.ZoneGranularity, ignoreCase: true);
         var trendGranularity = Enum.Parse<CandlestickGranularity>(_monitorSettings.TrendGranularity, ignoreCase: true);
@@ -50,8 +44,16 @@ public class ZoneMonitorService : BackgroundService
             .Select(i => Enum.Parse<InstrumentName>(i, ignoreCase: true))
             .ToArray();
 
+        // Derive poll interval from zone granularity
+        var intervalMinutes = GetGranularityMinutes(zoneGranularity);
+        _logger.LogInformation("Zone Monitor starting. Instruments: [{Instruments}], Zone TF: {ZoneTF}, Trend TF: {TrendTF}, Interval: {Interval}min",
+            string.Join(", ", _monitorSettings.Instruments),
+            _monitorSettings.ZoneGranularity,
+            _monitorSettings.TrendGranularity,
+            intervalMinutes);
+
         // Wait for the first candle-aligned slot before starting
-        var initialDelay = GetDelayUntilNextSlot();
+        var initialDelay = GetDelayUntilNextSlot(DateTime.UtcNow, intervalMinutes);
         _logger.LogInformation("Waiting {Delay} until first candle-aligned slot at {NextRun:HH:mm:ss} UTC",
             initialDelay, DateTime.UtcNow + initialDelay);
         await Task.Delay(initialDelay, stoppingToken);
@@ -74,7 +76,7 @@ public class ZoneMonitorService : BackgroundService
                 _logger.LogError(ex, "Error during zone monitoring cycle");
             }
 
-            var delay = GetDelayUntilNextSlot();
+            var delay = GetDelayUntilNextSlot(DateTime.UtcNow, intervalMinutes);
             _logger.LogInformation("Cycle complete. Next poll at {NextRun:HH:mm:ss} UTC (in {Delay})",
                 DateTime.UtcNow + delay, delay);
             await Task.Delay(delay, stoppingToken);
@@ -84,24 +86,21 @@ public class ZoneMonitorService : BackgroundService
     }
 
     /// <summary>
-    /// Calculates delay until 1 minute after the next M15 candle close.
-    /// M15 candles close at :00, :15, :30, :45 — we run at :01, :16, :31, :46.
+    /// Calculates delay until 1 minute after the next candle close, based on the
+    /// configured granularity interval. E.g., M15 → :01/:16/:31/:46, H1 → :01 each hour.
     /// </summary>
-    internal static TimeSpan GetDelayUntilNextSlot()
+    internal static TimeSpan GetDelayUntilNextSlot(DateTime utcNow, int intervalMinutes)
     {
-        return GetDelayUntilNextSlot(DateTime.UtcNow);
-    }
-
-    internal static TimeSpan GetDelayUntilNextSlot(DateTime utcNow)
-    {
-        const int intervalMinutes = 15;
         const int offsetMinutes = 1;
 
-        // Find the start of the current 15-min slot (floor to :00, :15, :30, :45)
-        var slotStart = utcNow.Date.AddHours(utcNow.Hour)
-            .AddMinutes(utcNow.Minute / intervalMinutes * intervalMinutes);
+        // Total minutes since midnight
+        var totalMinutes = utcNow.Hour * 60 + utcNow.Minute;
 
-        // Target is slotStart + offset (e.g., :01, :16, :31, :46)
+        // Floor to start of current slot
+        var slotStartMinutes = totalMinutes / intervalMinutes * intervalMinutes;
+        var slotStart = utcNow.Date.AddMinutes(slotStartMinutes);
+
+        // Target is slotStart + offset
         var target = slotStart.AddMinutes(offsetMinutes);
 
         // If we're already past the target in this slot, move to next slot
@@ -110,6 +109,33 @@ public class ZoneMonitorService : BackgroundService
 
         return target - utcNow;
     }
+
+    /// <summary>
+    /// Maps a CandlestickGranularity to its duration in minutes.
+    /// </summary>
+    internal static int GetGranularityMinutes(CandlestickGranularity granularity) => granularity switch
+    {
+        CandlestickGranularity.S5 => 1,    // sub-minute → poll every minute
+        CandlestickGranularity.S10 => 1,
+        CandlestickGranularity.S15 => 1,
+        CandlestickGranularity.S30 => 1,
+        CandlestickGranularity.M1 => 1,
+        CandlestickGranularity.M2 => 2,
+        CandlestickGranularity.M4 => 4,
+        CandlestickGranularity.M5 => 5,
+        CandlestickGranularity.M10 => 10,
+        CandlestickGranularity.M15 => 15,
+        CandlestickGranularity.M30 => 30,
+        CandlestickGranularity.H1 => 60,
+        CandlestickGranularity.H2 => 120,
+        CandlestickGranularity.H3 => 180,
+        CandlestickGranularity.H4 => 240,
+        CandlestickGranularity.H6 => 360,
+        CandlestickGranularity.H8 => 480,
+        CandlestickGranularity.H12 => 720,
+        CandlestickGranularity.D => 1440,
+        _ => 15 // fallback
+    };
 
     private async Task ProcessInstrumentAsync(
         InstrumentName instrument,
