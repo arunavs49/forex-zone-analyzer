@@ -230,25 +230,32 @@ resource notificationHub 'Microsoft.NotificationHubs/namespaces/notificationHubs
   }
 }
 
+// Reference NH authorization rules for connection strings
+resource nhFullAccessRule 'Microsoft.NotificationHubs/namespaces/notificationHubs/authorizationRules@2023-10-01-preview' existing = {
+  parent: notificationHub
+  name: 'DefaultFullSharedAccessSignature'
+}
+
+resource nhListenAccessRule 'Microsoft.NotificationHubs/namespaces/notificationHubs/authorizationRules@2023-10-01-preview' existing = {
+  parent: notificationHub
+  name: 'DefaultListenSharedAccessSignature'
+}
+
 // Store NH connection string in Key Vault (DefaultFullSharedAccessSignature)
-#disable-next-line use-resource-symbol-reference
 resource nhConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name: 'nh-connection-string'
   properties: {
-    #disable-next-line use-resource-symbol-reference
-    value: listKeys(notificationHub.id, '2023-10-01-preview').value[0].value
+    value: nhFullAccessRule.listKeys().primaryConnectionString
   }
 }
 
 // Store NH listen-only connection string for the iOS app (DefaultListenSharedAccessSignature)
-#disable-next-line use-resource-symbol-reference
 resource nhListenConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name: 'nh-listen-connection-string'
   properties: {
-    #disable-next-line use-resource-symbol-reference
-    value: filter(listKeys(notificationHub.id, '2023-10-01-preview').value, k => contains(k.keyName, 'Listen'))[0].value
+    value: nhListenAccessRule.listKeys().primaryConnectionString
   }
 }
 
@@ -380,7 +387,7 @@ resource workerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWorker) 
         }
         {
           name: 'nh-connection-string'
-          value: listKeys(notificationHub.id, '2023-10-01-preview').value[0].value
+          value: nhFullAccessRule.listKeys().primaryConnectionString
         }
       ]
       registries: [
