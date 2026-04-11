@@ -72,7 +72,7 @@ actor MCPClient {
         request.httpMethod = "POST"
         request.httpBody = bodyData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json, text/event-stream", forHTTPHeaderField: "Accept")
         if !bearerToken.isEmpty {
             request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
         }
@@ -91,6 +91,18 @@ actor MCPClient {
             guard (200...299).contains(httpResponse.statusCode) else {
                 let body = String(data: data, encoding: .utf8) ?? "No body"
                 throw MCPError.httpError(statusCode: httpResponse.statusCode, body: body)
+            }
+
+            // Handle SSE responses — extract JSON-RPC message from event stream
+            let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? ""
+            if contentType.contains("text/event-stream") {
+                let sseData = extractJSONFromSSE(data)
+                let rpcResponse = try JSONDecoder().decode(JSONRPCResponse<R>.self, from: sseData)
+                if let error = rpcResponse.error {
+                    throw MCPError.rpcError(code: error.code, message: error.message)
+                }
+                guard let result = rpcResponse.result else { throw MCPError.noResult }
+                return result
             }
         }
 
@@ -112,7 +124,7 @@ actor MCPClient {
         request.httpMethod = "POST"
         request.httpBody = bodyData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json, text/event-stream", forHTTPHeaderField: "Accept")
         if !bearerToken.isEmpty {
             request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
         }
@@ -125,6 +137,16 @@ actor MCPClient {
            let sid = httpResponse.value(forHTTPHeaderField: "Mcp-Session-Id") {
             sessionId = sid
         }
+    }
+
+    /// Parse JSON-RPC message from SSE event stream (extracts data from "data:" lines)
+    private func extractJSONFromSSE(_ data: Data) -> Data {
+        guard let text = String(data: data, encoding: .utf8) else { return data }
+        let jsonLines = text.components(separatedBy: "\n")
+            .filter { $0.hasPrefix("data:") }
+            .map { String($0.dropFirst(5)).trimmingCharacters(in: .whitespaces) }
+            .joined()
+        return Data(jsonLines.utf8)
     }
 }
 
