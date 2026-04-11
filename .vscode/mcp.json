@@ -1,27 +1,23 @@
 {
   // MCP server configurations for VS Code / GitHub Copilot
   // See: https://code.visualstudio.com/docs/copilot/chat/mcp-servers
-  //
-  // Prerequisites: Azure CLI logged in (az login)
+
+  "inputs": [
+    {
+      "id": "mcp-token",
+      "type": "promptString",
+      "description": "Run: az account get-access-token --resource api://c1bba0b6-1125-40c1-b496-0ef773bfd7b4 -q accessToken -o tsv",
+      "password": true
+    }
+  ],
 
   "servers": {
-    // ── Local development ──────────────────────────────────────────────
-    // No auth required. Start the server first:
-    //   cd src/ForexZoneAnalyzer.McpServer
-    //   dotnet user-secrets set "Oanda:ApiToken" "<your-oanda-token>"
-    //   dotnet run
-    //"forex-zone-analyzer-local": {
-    //  "type": "http",
-    //  "url": "http://localhost:5000/mcp"
-    //}
-
     // ── Remote Azure deployment ────────────────────────────────────────
-    // Token is fetched automatically via Azure CLI
     "forex-zone-analyzer-remote": {
        "type": "http",
        "url": "https://ca-forex-mcp.gentlegrass-9ef0e688.eastus2.azurecontainerapps.io/mcp",
        "headers": {
-         "Authorization": "Bearer ${command:./scripts/get-mcp-token.sh}"
+         "Authorization": "Bearer ${input:mcp-token}"
        }
     }
   }
