@@ -1,0 +1,420 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		08B5737A86EE5B98859D01FA /* ChartViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F496625415C8A6311FDF59D1 /* ChartViewModel.swift */; };
+		13E0165714ADEDD26ED0B560 /* PriceGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DA7FC488D6804C6B86A8F6E /* PriceGridView.swift */; };
+		1522F36DCF136EB4D80C4F17 /* CrosshairOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E327367CBB9D8A5404804F11 /* CrosshairOverlay.swift */; };
+		19C284EBD7AC81200518A6BE /* ZoneRadarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1583E6567A4CAB2578DBCD6F /* ZoneRadarApp.swift */; };
+		2B1BA09615CA631F065F8992 /* ChartContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FFE730796CD79878CD88C8F /* ChartContainerView.swift */; };
+		43692F388A757550F0CD6CCB /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4421221952B84155B9CE838F /* AppSettings.swift */; };
+		43FAEC06F5D6E1322C5E382E /* ForexDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58AAFCBE76BC0F3CAD6211B4 /* ForexDataService.swift */; };
+		4A934BF3C65FF787552C4C60 /* MCPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF146C131E891FE10EF55263 /* MCPClient.swift */; };
+		4EA4D1AD712CA6AEC29B4425 /* Instrument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A7C9770AB49118E01C6F13 /* Instrument.swift */; };
+		514170B186EA9DFA49D2182A /* Zone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81B76E22F142AC7F7553CE70 /* Zone.swift */; };
+		52AEA92AFBA51166AFEB57D0 /* ZoneListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C0E0AECBA4A9222AF168023 /* ZoneListView.swift */; };
+		6223D775319AC7667709E190 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDC091F342DBC36F7ADD8D4 /* ContentView.swift */; };
+		8127845846130D5B24700AC3 /* Candle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6047CF6CAD8D4B82A5C41E88 /* Candle.swift */; };
+		90DB05D416E874B29380CD21 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD9C81C54C68A9C11EBECBB2 /* SettingsView.swift */; };
+		B21C5E9D6C58961014CC7F94 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 955CD25A118FDB3E0DB8657C /* Assets.xcassets */; };
+		B628EA1F36F9DEF692780A4E /* CandlestickChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 445DC6985DF81450751CAD16 /* CandlestickChartView.swift */; };
+		D6235B862AFB8AAE42B3678A /* InstrumentListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEC94E9A05DAA12EC822919E /* InstrumentListView.swift */; };
+		F1D6EDF4FA0E4762A43E1002 /* ZoneOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDAC391C3FA4AF0409A16B1 /* ZoneOverlayView.swift */; };
+		F331968B5B468AE4FC135A5B /* ZonePollingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E78630E5A49CFD7002970E34 /* ZonePollingService.swift */; };
+		F554E4E3AD1E42F8816866C3 /* ZoneAnalysisResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA95DEFC80C86FD4B62457D3 /* ZoneAnalysisResponse.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1583E6567A4CAB2578DBCD6F /* ZoneRadarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneRadarApp.swift; sourceTree = "<group>"; };
+		3C0E0AECBA4A9222AF168023 /* ZoneListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneListView.swift; sourceTree = "<group>"; };
+		3DA7FC488D6804C6B86A8F6E /* PriceGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceGridView.swift; sourceTree = "<group>"; };
+		4421221952B84155B9CE838F /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		445DC6985DF81450751CAD16 /* CandlestickChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandlestickChartView.swift; sourceTree = "<group>"; };
+		4FFE730796CD79878CD88C8F /* ChartContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartContainerView.swift; sourceTree = "<group>"; };
+		58AAFCBE76BC0F3CAD6211B4 /* ForexDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForexDataService.swift; sourceTree = "<group>"; };
+		5FDAC391C3FA4AF0409A16B1 /* ZoneOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneOverlayView.swift; sourceTree = "<group>"; };
+		6047CF6CAD8D4B82A5C41E88 /* Candle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Candle.swift; sourceTree = "<group>"; };
+		66A7C9770AB49118E01C6F13 /* Instrument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Instrument.swift; sourceTree = "<group>"; };
+		6DDC091F342DBC36F7ADD8D4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		81B76E22F142AC7F7553CE70 /* Zone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Zone.swift; sourceTree = "<group>"; };
+		955CD25A118FDB3E0DB8657C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AD9C81C54C68A9C11EBECBB2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		AF6587F7464C7AB0FB86C461 /* ZoneRadar.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ZoneRadar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C38E54C747C8F78E72ABD72B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E327367CBB9D8A5404804F11 /* CrosshairOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrosshairOverlay.swift; sourceTree = "<group>"; };
+		E78630E5A49CFD7002970E34 /* ZonePollingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZonePollingService.swift; sourceTree = "<group>"; };
+		EA95DEFC80C86FD4B62457D3 /* ZoneAnalysisResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneAnalysisResponse.swift; sourceTree = "<group>"; };
+		EF146C131E891FE10EF55263 /* MCPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPClient.swift; sourceTree = "<group>"; };
+		F496625415C8A6311FDF59D1 /* ChartViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartViewModel.swift; sourceTree = "<group>"; };
+		FEC94E9A05DAA12EC822919E /* InstrumentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstrumentListView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		02C2106B20629007310AD8C0 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				4FFE730796CD79878CD88C8F /* ChartContainerView.swift */,
+				FEC94E9A05DAA12EC822919E /* InstrumentListView.swift */,
+				AD9C81C54C68A9C11EBECBB2 /* SettingsView.swift */,
+				3C0E0AECBA4A9222AF168023 /* ZoneListView.swift */,
+				A5AE033AB627B6A6061040A8 /* Components */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		4D0F53D91F64A3B1288AE12B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AF6587F7464C7AB0FB86C461 /* ZoneRadar.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		72181ED11F250757E051013D /* ForexZoneApp */ = {
+			isa = PBXGroup;
+			children = (
+				955CD25A118FDB3E0DB8657C /* Assets.xcassets */,
+				6DDC091F342DBC36F7ADD8D4 /* ContentView.swift */,
+				C38E54C747C8F78E72ABD72B /* Info.plist */,
+				1583E6567A4CAB2578DBCD6F /* ZoneRadarApp.swift */,
+				912510C3F9D750C75B8B07BB /* Models */,
+				E48274303BFF5C20642E7D48 /* Services */,
+				E1241383FD4AE21289A8835A /* ViewModels */,
+				02C2106B20629007310AD8C0 /* Views */,
+			);
+			path = ForexZoneApp;
+			sourceTree = "<group>";
+		};
+		73150F2B3A301AC713998AA6 = {
+			isa = PBXGroup;
+			children = (
+				72181ED11F250757E051013D /* ForexZoneApp */,
+				4D0F53D91F64A3B1288AE12B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		912510C3F9D750C75B8B07BB /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				4421221952B84155B9CE838F /* AppSettings.swift */,
+				6047CF6CAD8D4B82A5C41E88 /* Candle.swift */,
+				66A7C9770AB49118E01C6F13 /* Instrument.swift */,
+				81B76E22F142AC7F7553CE70 /* Zone.swift */,
+				EA95DEFC80C86FD4B62457D3 /* ZoneAnalysisResponse.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A5AE033AB627B6A6061040A8 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				445DC6985DF81450751CAD16 /* CandlestickChartView.swift */,
+				E327367CBB9D8A5404804F11 /* CrosshairOverlay.swift */,
+				3DA7FC488D6804C6B86A8F6E /* PriceGridView.swift */,
+				5FDAC391C3FA4AF0409A16B1 /* ZoneOverlayView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		E1241383FD4AE21289A8835A /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				F496625415C8A6311FDF59D1 /* ChartViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		E48274303BFF5C20642E7D48 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				58AAFCBE76BC0F3CAD6211B4 /* ForexDataService.swift */,
+				EF146C131E891FE10EF55263 /* MCPClient.swift */,
+				E78630E5A49CFD7002970E34 /* ZonePollingService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AD5078A773C64421F2FA3433 /* ZoneRadar */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DE03A4C9B994EBECDA0745A2 /* Build configuration list for PBXNativeTarget "ZoneRadar" */;
+			buildPhases = (
+				BC97EF1977705313E78095DD /* Sources */,
+				7338C64BC871A4CB6798AB77 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ZoneRadar;
+			packageProductDependencies = (
+			);
+			productName = ZoneRadar;
+			productReference = AF6587F7464C7AB0FB86C461 /* ZoneRadar.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		43E92C6E51081E7E99CFF1E9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					AD5078A773C64421F2FA3433 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = E7B0F3CC243098649BF6CED6 /* Build configuration list for PBXProject "ZoneRadar" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 73150F2B3A301AC713998AA6;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 4D0F53D91F64A3B1288AE12B /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AD5078A773C64421F2FA3433 /* ZoneRadar */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7338C64BC871A4CB6798AB77 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B21C5E9D6C58961014CC7F94 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BC97EF1977705313E78095DD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				43692F388A757550F0CD6CCB /* AppSettings.swift in Sources */,
+				8127845846130D5B24700AC3 /* Candle.swift in Sources */,
+				B628EA1F36F9DEF692780A4E /* CandlestickChartView.swift in Sources */,
+				2B1BA09615CA631F065F8992 /* ChartContainerView.swift in Sources */,
+				08B5737A86EE5B98859D01FA /* ChartViewModel.swift in Sources */,
+				6223D775319AC7667709E190 /* ContentView.swift in Sources */,
+				1522F36DCF136EB4D80C4F17 /* CrosshairOverlay.swift in Sources */,
+				43FAEC06F5D6E1322C5E382E /* ForexDataService.swift in Sources */,
+				4EA4D1AD712CA6AEC29B4425 /* Instrument.swift in Sources */,
+				D6235B862AFB8AAE42B3678A /* InstrumentListView.swift in Sources */,
+				4A934BF3C65FF787552C4C60 /* MCPClient.swift in Sources */,
+				13E0165714ADEDD26ED0B560 /* PriceGridView.swift in Sources */,
+				90DB05D416E874B29380CD21 /* SettingsView.swift in Sources */,
+				514170B186EA9DFA49D2182A /* Zone.swift in Sources */,
+				F554E4E3AD1E42F8816866C3 /* ZoneAnalysisResponse.swift in Sources */,
+				52AEA92AFBA51166AFEB57D0 /* ZoneListView.swift in Sources */,
+				F1D6EDF4FA0E4762A43E1002 /* ZoneOverlayView.swift in Sources */,
+				F331968B5B468AE4FC135A5B /* ZonePollingService.swift in Sources */,
+				19C284EBD7AC81200518A6BE /* ZoneRadarApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		28C01615C115030B2D347DD8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		76A1AE007ACB475BB1467E57 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		B709D1CFBB012FC90D6D1001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = ForexZoneApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zoneradar.app;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E7958159785B4DBA54D4415D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = ForexZoneApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.zoneradar.app;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		DE03A4C9B994EBECDA0745A2 /* Build configuration list for PBXNativeTarget "ZoneRadar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B709D1CFBB012FC90D6D1001 /* Debug */,
+				E7958159785B4DBA54D4415D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E7B0F3CC243098649BF6CED6 /* Build configuration list for PBXProject "ZoneRadar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				76A1AE007ACB475BB1467E57 /* Debug */,
+				28C01615C115030B2D347DD8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 43E92C6E51081E7E99CFF1E9 /* Project object */;
+}

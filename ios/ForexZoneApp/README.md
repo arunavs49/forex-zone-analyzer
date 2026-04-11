@@ -1,4 +1,4 @@
-# Forex Zone Analyzer — iOS App
+# ZoneRadar — iOS App
 
 A native SwiftUI iPhone app that visualizes supply/demand zones on interactive candlestick charts. Connects to the Forex Zone Analyzer MCP server deployed on Azure Container Apps to fetch real-time candle data, zone analysis, and trend direction.
 
@@ -58,14 +58,14 @@ A native SwiftUI iPhone app that visualizes supply/demand zones on interactive c
 ### Step 1: Open the Project in Xcode
 
 ```bash
-cd ios/ForexZoneApp
-open ForexZoneApp.xcodeproj
+cd ios/ZoneRadar
+open ZoneRadar.xcodeproj
 ```
 
 ### Step 2: Configure Signing (One-Time Setup)
 
-1. In Xcode, select the **ForexZoneApp** project in the navigator (blue icon at the top)
-2. Select the **ForexZoneApp** target
+1. In Xcode, select the **ZoneRadar** project in the navigator (blue icon at the top)
+2. Select the **ZoneRadar** target
 3. Go to the **Signing & Capabilities** tab
 4. Check **"Automatically manage signing"**
 5. Under **Team**, select your Apple ID:
@@ -217,10 +217,10 @@ az account get-access-token --resource api://<your-app-client-id> --query access
 ## Project Structure
 
 ```
-ios/ForexZoneApp/
-├── ForexZoneApp.xcodeproj/        # Xcode project
-└── ForexZoneApp/
-    ├── ForexZoneAppApp.swift       # App entry point
+ios/ZoneRadar/
+├── ZoneRadar.xcodeproj/        # Xcode project
+└── ZoneRadar/
+    ├── ZoneRadarApp.swift       # App entry point
     ├── ContentView.swift           # Root navigation + settings sheet
     ├── Models/
     │   ├── Candle.swift            # OHLCV candlestick model

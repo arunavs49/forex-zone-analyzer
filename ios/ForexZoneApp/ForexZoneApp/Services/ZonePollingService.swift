@@ -7,7 +7,7 @@ import BackgroundTasks
 /// Background: BGAppRefreshTask wakes the app periodically (iOS controls exact timing, typically ~15-30 min).
 @MainActor
 class ZonePollingService: ObservableObject {
-    nonisolated static let bgTaskIdentifier = "com.forexzoneanalyzer.app.zone-refresh"
+    nonisolated static let bgTaskIdentifier = "com.zoneradar.app.zone-refresh"
 
     @Published var lastCheckDate: Date?
     @Published var newZoneCount: Int = 0

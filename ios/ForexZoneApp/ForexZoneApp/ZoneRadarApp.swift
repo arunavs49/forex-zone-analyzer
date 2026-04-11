@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct ForexZoneAppApp: App {
+struct ZoneRadarApp: App {
     @StateObject private var settings = AppSettings()
     @StateObject private var pollingService: ZonePollingService
     @Environment(\.scenePhase) private var scenePhase

@@ -1,6 +1,6 @@
-name: ForexZoneApp
+name: ZoneRadar
 targets:
-  ForexZoneApp:
+  ZoneRadar:
     type: application
     platform: iOS
     deploymentTarget: "17.0"
@@ -12,16 +12,17 @@ targets:
         UIBackgroundModes:
           - fetch
         BGTaskSchedulerPermittedIdentifiers:
-          - com.forexzoneanalyzer.app.zone-refresh
+          - com.zoneradar.app.zone-refresh
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
           UISceneConfigurations: {}
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        CFBundleDisplayName: ZoneRadar
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.forexzoneanalyzer.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.zoneradar.app
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         CODE_SIGN_STYLE: Automatic

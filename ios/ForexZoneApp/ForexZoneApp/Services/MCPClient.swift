@@ -30,7 +30,7 @@ actor MCPClient {
             params: InitializeParams(
                 protocolVersion: "2025-03-26",
                 capabilities: ClientCapabilities(),
-                clientInfo: ClientInfo(name: "ForexZoneApp-iOS", version: "1.0.0")
+                clientInfo: ClientInfo(name: "ZoneRadar-iOS", version: "1.0.0")
             )
         )
         _ = result
