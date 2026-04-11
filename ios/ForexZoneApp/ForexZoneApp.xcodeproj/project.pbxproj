@@ -10,6 +10,7 @@
 		1E75C7DA075499ACA7B41BCB /* ChartContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB0BBBCB00868F9418492F0 /* ChartContainerView.swift */; };
 		3357BAFAC5F837D3F778F0C0 /* Zone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 542713005EAEFEB6D7911B89 /* Zone.swift */; };
 		3B26EB22FAFB7D2F465865A0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D487895C4FB4843C933CCAF /* AppSettings.swift */; };
+		4A3A6E831856244C965CD276 /* CrosshairOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6280DB4ACD9F5728A2929280 /* CrosshairOverlay.swift */; };
 		6FAF311842ED52C7C4BA1224 /* Candle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7BD495D2D51F3B585F55F2 /* Candle.swift */; };
 		970A357854B940ACE3EC7DB3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 32C6CADB7178B5B26ACE4345 /* Assets.xcassets */; };
 		9A6B6C17EFB5A502FDF820A7 /* ForexZoneAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B2E34D9B7CF1890D3A6C667 /* ForexZoneAppApp.swift */; };
@@ -35,10 +36,11 @@
 		486DFAD43257838D5FB796B7 /* ZoneListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneListView.swift; sourceTree = "<group>"; };
 		542713005EAEFEB6D7911B89 /* Zone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Zone.swift; sourceTree = "<group>"; };
 		58C1BAFCC1B3184721EDF274 /* ZoneAnalysisResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneAnalysisResponse.swift; sourceTree = "<group>"; };
+		6280DB4ACD9F5728A2929280 /* CrosshairOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrosshairOverlay.swift; sourceTree = "<group>"; };
 		6B2E34D9B7CF1890D3A6C667 /* ForexZoneAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForexZoneAppApp.swift; sourceTree = "<group>"; };
 		6D487895C4FB4843C933CCAF /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		6E933F9BB1F469635B0EE224 /* ChartViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartViewModel.swift; sourceTree = "<group>"; };
-		747C5F2A66E63D60F79B30EA /* ForexZoneApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ForexZoneApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		747C5F2A66E63D60F79B30EA /* ForexZoneApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ForexZoneApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7D7BD495D2D51F3B585F55F2 /* Candle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Candle.swift; sourceTree = "<group>"; };
 		9939B1E34E42DD72ECC23DAF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		C1E138E406E517C38D819503 /* InstrumentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstrumentListView.swift; sourceTree = "<group>"; };
@@ -70,6 +72,7 @@
 			isa = PBXGroup;
 			children = (
 				EF952A46DC01D4A93ABEFEFD /* CandlestickChartView.swift */,
+				6280DB4ACD9F5728A2929280 /* CrosshairOverlay.swift */,
 				CC49918940FDFB1645063475 /* PriceGridView.swift */,
 				3EADB29DA08E6AA05E753186 /* ZoneOverlayView.swift */,
 			);
@@ -209,6 +212,7 @@
 				1E75C7DA075499ACA7B41BCB /* ChartContainerView.swift in Sources */,
 				E744DAF779B36BAEEE4AF8CD /* ChartViewModel.swift in Sources */,
 				EA59545E20B388BCE03BFD08 /* ContentView.swift in Sources */,
+				4A3A6E831856244C965CD276 /* CrosshairOverlay.swift in Sources */,
 				B89E919248A25F84B99F1BCD /* ForexDataService.swift in Sources */,
 				9A6B6C17EFB5A502FDF820A7 /* ForexZoneAppApp.swift in Sources */,
 				F805B1D0DE454B2B1F50848A /* Instrument.swift in Sources */,
@@ -350,7 +354,6 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D32H924842;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ForexZoneApp/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -378,7 +381,6 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D32H924842;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ForexZoneApp/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

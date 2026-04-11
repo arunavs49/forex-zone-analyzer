@@ -11,8 +11,14 @@ struct CandlestickChartView: View {
     @GestureState private var dragOffset: CGFloat = 0
     @GestureState private var magnification: CGFloat = 1.0
 
+    // Crosshair state
+    @State private var crosshairPosition: CGPoint?
+    @State private var isDraggingCrosshair = false
+
     private let candleWidth: CGFloat = 8
     private let candleSpacing: CGFloat = 3
+    private let timeAxisHeight: CGFloat = 28
+    private let priceAxisWidth: CGFloat = 58
 
     private var effectiveScale: CGFloat {
         max(0.3, min(scale * magnification, 5.0))
@@ -29,7 +35,6 @@ struct CandlestickChartView: View {
             if let l = c.low { lo = min(lo, l) }
             if let h = c.high { hi = max(hi, h) }
         }
-        // Include zone ranges
         for z in supplyZones + demandZones {
             lo = min(lo, z.baseRangeLow)
             hi = max(hi, z.baseRangeHigh)
@@ -41,14 +46,13 @@ struct CandlestickChartView: View {
     var body: some View {
         GeometryReader { geo in
             let range = priceRange
-            let chartHeight = geo.size.height - 40 // leave room for time labels
-            let chartWidth = geo.size.width
+            let chartHeight = geo.size.height - timeAxisHeight
+            let chartWidth = geo.size.width - priceAxisWidth
 
             ZStack(alignment: .topLeading) {
-                // Background
                 Color(.systemBackground)
 
-                // Price grid lines
+                // Price grid
                 PriceGridView(
                     priceMin: range.min,
                     priceMax: range.max,
@@ -59,28 +63,19 @@ struct CandlestickChartView: View {
                 // Zone overlays
                 ForEach(demandZones) { zone in
                     ZoneOverlayView(
-                        zone: zone,
-                        candles: candles,
-                        priceMin: range.min,
-                        priceMax: range.max,
-                        chartHeight: chartHeight,
-                        totalCandleWidth: totalCandleWidth,
-                        offset: offset + dragOffset,
-                        chartWidth: chartWidth,
+                        zone: zone, candles: candles,
+                        priceMin: range.min, priceMax: range.max,
+                        chartHeight: chartHeight, totalCandleWidth: totalCandleWidth,
+                        offset: offset + dragOffset, chartWidth: chartWidth,
                         color: .green
                     )
                 }
-
                 ForEach(supplyZones) { zone in
                     ZoneOverlayView(
-                        zone: zone,
-                        candles: candles,
-                        priceMin: range.min,
-                        priceMax: range.max,
-                        chartHeight: chartHeight,
-                        totalCandleWidth: totalCandleWidth,
-                        offset: offset + dragOffset,
-                        chartWidth: chartWidth,
+                        zone: zone, candles: candles,
+                        priceMin: range.min, priceMax: range.max,
+                        chartHeight: chartHeight, totalCandleWidth: totalCandleWidth,
+                        offset: offset + dragOffset, chartWidth: chartWidth,
                         color: .red
                     )
                 }
@@ -94,61 +89,118 @@ struct CandlestickChartView: View {
 
                         let x = CGFloat(index) * totalCandleWidth + effectiveOffset
                         let bodyW = candleWidth * effectiveScale
-
-                        // Skip candles outside visible area
                         guard x + bodyW > 0 && x < chartWidth else { continue }
 
-                        let yHigh = yPosition(price: high, min: range.min, max: range.max, height: chartHeight)
-                        let yLow = yPosition(price: low, min: range.min, max: range.max, height: chartHeight)
-                        let yOpen = yPosition(price: open, min: range.min, max: range.max, height: chartHeight)
-                        let yClose = yPosition(price: close, min: range.min, max: range.max, height: chartHeight)
+                        let yHigh = yPos(high, range, chartHeight)
+                        let yLow = yPos(low, range, chartHeight)
+                        let yOpen = yPos(open, range, chartHeight)
+                        let yClose = yPos(close, range, chartHeight)
 
                         let isBullish = close >= open
                         let color: Color = isBullish ? .green : .red
                         let bodyTop = min(yOpen, yClose)
                         let bodyHeight = max(abs(yOpen - yClose), 1)
 
-                        // Wick
-                        let wickX = x + bodyW / 2
                         var wickPath = Path()
-                        wickPath.move(to: CGPoint(x: wickX, y: yHigh))
-                        wickPath.addLine(to: CGPoint(x: wickX, y: yLow))
+                        wickPath.move(to: CGPoint(x: x + bodyW / 2, y: yHigh))
+                        wickPath.addLine(to: CGPoint(x: x + bodyW / 2, y: yLow))
                         context.stroke(wickPath, with: .color(color), lineWidth: 1)
 
-                        // Body
                         let bodyRect = CGRect(x: x, y: bodyTop, width: bodyW, height: bodyHeight)
                         if isBullish {
                             context.stroke(Path(bodyRect), with: .color(color), lineWidth: 1)
-                            // Hollow bullish candle
                         } else {
                             context.fill(Path(bodyRect), with: .color(color))
                         }
                     }
                 }
-                .frame(height: chartHeight)
+                .frame(width: chartWidth, height: chartHeight)
 
-                // Current price line
-                if let lastCandle = candles.last, let close = lastCandle.close {
-                    let y = yPosition(price: close, min: range.min, max: range.max, height: chartHeight)
-                    Path { path in
-                        path.move(to: CGPoint(x: 0, y: y))
-                        path.addLine(to: CGPoint(x: chartWidth, y: y))
+                // Time axis labels
+                Canvas { context, size in
+                    let effectiveOffset = offset + dragOffset
+                    let stepValue: CGFloat = 60.0 / totalCandleWidth
+                    let labelStep: Int = max(1, Int(stepValue))
+                    let formatter = DateFormatter()
+                    formatter.dateFormat = "dd MMM\nHH:mm"
+                    let bodyW: CGFloat = candleWidth * effectiveScale
+
+                    for i in stride(from: 0, to: candles.count, by: labelStep) {
+                        let x: CGFloat = CGFloat(i) * totalCandleWidth + effectiveOffset + bodyW / 2.0
+                        guard x > 0 && x < chartWidth else { continue }
+
+                        if let date = candles[i].date {
+                            let text = Text(formatter.string(from: date))
+                                .font(.system(size: 7, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                            context.draw(
+                                context.resolve(text),
+                                at: CGPoint(x: x, y: size.height / 2),
+                                anchor: .center
+                            )
+                        }
                     }
-                    .stroke(style: StrokeStyle(lineWidth: 0.8, dash: [4, 3]))
-                    .foregroundStyle(.blue.opacity(0.6))
-
-                    // Price label
-                    Text(formatPrice(close))
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.blue)
-                        .padding(.horizontal, 3)
-                        .background(.blue.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 2))
-                        .position(x: chartWidth - 30, y: y - 8)
                 }
+                .frame(width: chartWidth, height: timeAxisHeight)
+                .offset(y: chartHeight)
+
+                // Price axis labels (right side)
+                Canvas { context, size in
+                    let steps = max(2, Int(chartHeight / 50))
+                    for i in 0...steps {
+                        let ratio = Double(i) / Double(steps)
+                        let price = range.max - ratio * (range.max - range.min)
+                        let y = chartHeight * ratio
+                        let text = Text(formatPrice(price))
+                            .font(.system(size: 8, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                        context.draw(
+                            context.resolve(text),
+                            at: CGPoint(x: priceAxisWidth / 2, y: y),
+                            anchor: .center
+                        )
+                    }
+                }
+                .frame(width: priceAxisWidth, height: chartHeight)
+                .offset(x: chartWidth)
+
+                // Current price line + crosshair
+                CrosshairOverlay(
+                    candles: candles,
+                    crosshairPosition: crosshairPosition,
+                    isDraggingCrosshair: isDraggingCrosshair,
+                    chartWidth: chartWidth,
+                    chartHeight: chartHeight,
+                    priceAxisWidth: priceAxisWidth,
+                    timeAxisHeight: timeAxisHeight,
+                    priceRange: range,
+                    totalCandleWidth: totalCandleWidth,
+                    effectiveOffset: offset + dragOffset
+                )
             }
             .clipped()
+            .contentShape(Rectangle())
             .gesture(
+                LongPressGesture(minimumDuration: 0.2)
+                    .sequenced(before: DragGesture(minimumDistance: 0))
+                    .onChanged { value in
+                        switch value {
+                        case .second(true, let drag):
+                            isDraggingCrosshair = true
+                            if let drag = drag {
+                                crosshairPosition = drag.location
+                            }
+                        default:
+                            break
+                        }
+                    }
+                    .onEnded { _ in
+                        isDraggingCrosshair = false
+                        crosshairPosition = nil
+                    }
+            )
+            .simultaneousGesture(
+                isDraggingCrosshair ? nil :
                 DragGesture()
                     .updating($dragOffset) { value, state, _ in
                         state = value.translation.width
@@ -168,22 +220,19 @@ struct CandlestickChartView: View {
                     }
             )
             .onAppear {
-                // Scroll to show latest candles
                 let totalWidth = CGFloat(candles.count) * totalCandleWidth
                 if totalWidth > chartWidth {
                     offset = chartWidth - totalWidth
                 }
             }
-            .onChange(of: focusedZone?.id) { _, newId in
+            .onChange(of: focusedZone?.id) { _, _ in
                 guard let zone = focusedZone else { return }
                 let index = findCandleIndex(for: zone.startTime)
-                // Center the zone's start on screen
                 let targetX = CGFloat(index) * totalCandleWidth
                 withAnimation(.easeInOut(duration: 0.4)) {
                     offset = chartWidth / 2 - targetX
                     clampOffset(chartWidth: chartWidth)
                 }
-                // Clear focus after scrolling
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     focusedZone = nil
                 }
@@ -191,8 +240,10 @@ struct CandlestickChartView: View {
         }
     }
 
-    private func yPosition(price: Double, min: Double, max: Double, height: CGFloat) -> CGFloat {
-        let ratio = (price - min) / (max - min)
+    // MARK: - Helpers
+
+    private func yPos(_ price: Double, _ range: (min: Double, max: Double), _ height: CGFloat) -> CGFloat {
+        let ratio = (price - range.min) / (range.max - range.min)
         return height * (1.0 - ratio)
     }
 
@@ -212,7 +263,6 @@ struct CandlestickChartView: View {
             targetDate = formatter.date(from: timeStr)
         }
         guard let target = targetDate else { return 0 }
-
         for (index, candle) in candles.enumerated() {
             if let candleDate = candle.date, candleDate >= target {
                 return max(0, index - 1)
