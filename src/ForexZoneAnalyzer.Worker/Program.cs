@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using ForexZoneAnalyzer.Worker.Configuration;
 using ForexZoneAnalyzer.Worker.Services;
+using Microsoft.Azure.NotificationHubs;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -26,11 +27,34 @@ else
     builder.Services.AddSingleton<IZoneStore, TableStorageZoneStore>();
 }
 
-// Notification: email when ACS is configured, console otherwise
+// Notification services: build a list and wrap in CompositeNotificationService
+var notificationServices = new List<Func<IServiceProvider, INotificationService>>();
+
 var acsConnectionString = builder.Configuration["Notification:AcsConnectionString"];
 if (!string.IsNullOrEmpty(acsConnectionString))
 {
-    builder.Services.AddSingleton<INotificationService, EmailNotificationService>();
+    builder.Services.AddSingleton<EmailNotificationService>();
+    notificationServices.Add(sp => sp.GetRequiredService<EmailNotificationService>());
+}
+
+var nhConnectionString = builder.Configuration["Notification:NotificationHubConnectionString"];
+var nhName = builder.Configuration["Notification:NotificationHubName"];
+if (!string.IsNullOrEmpty(nhConnectionString) && !string.IsNullOrEmpty(nhName))
+{
+    builder.Services.AddSingleton<INotificationHubClient>(
+        NotificationHubClient.CreateClientFromConnectionString(nhConnectionString, nhName));
+    builder.Services.AddSingleton<PushNotificationService>();
+    notificationServices.Add(sp => sp.GetRequiredService<PushNotificationService>());
+}
+
+if (notificationServices.Count > 0)
+{
+    builder.Services.AddSingleton<INotificationService>(sp =>
+    {
+        var services = notificationServices.Select(factory => factory(sp));
+        var logger = sp.GetRequiredService<ILogger<CompositeNotificationService>>();
+        return new CompositeNotificationService(services, logger);
+    });
 }
 else
 {

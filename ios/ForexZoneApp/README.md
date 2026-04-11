@@ -12,6 +12,7 @@ A native SwiftUI iPhone app that visualizes supply/demand zones on interactive c
 - 💱 **20 forex pairs** — all majors and popular crosses
 - 🔐 **Entra ID authentication** — configurable bearer token for the cloud MCP server
 - 🔌 **MCP protocol client** — native Streamable HTTP (JSON-RPC 2.0) transport
+- 🔔 **Push notifications** — real-time zone alerts via Azure Notification Hubs + APNs
 
 ## Architecture
 
@@ -165,6 +166,43 @@ Use this to test against the MCP server running on your Mac. No Entra ID token i
 
 ---
 
+## Push Notifications Setup
+
+The app receives real-time zone alerts from the background Worker via Azure Notification Hubs → APNs.
+
+### Prerequisites
+- **Apple Developer Account** (paid — required for push notification entitlements)
+- **APNs Authentication Key** (p8 file) from [Apple Developer Portal](https://developer.apple.com/account/resources/authkeys/list)
+- Azure Notification Hub deployed via the Bicep infra (uses **Free tier**)
+
+### Configuration
+
+1. **Deploy infra with APNs credentials:**
+   ```bash
+   az deployment sub create --location eastus2 --template-file infra/main.bicep \
+     --parameters infra/main.bicepparam \
+     --parameters oandaApiToken=<token> \
+       apnsKeyId=<key-id> apnsTeamId=<team-id> apnsSigningKey=<p8-key-contents>
+   ```
+
+2. **Get the listen-only connection string** from Key Vault:
+   ```bash
+   az keyvault secret show --vault-name <kv-name> --name nh-listen-connection-string --query value -o tsv
+   ```
+
+3. **In the iOS app**, go to **Settings** and enter:
+   - **Notification Hub Name** (e.g., `nh-forex-mcp`)
+   - **Listen Connection String** (from step 2)
+
+4. The app will request notification permission on launch and register with the hub.
+
+### How It Works
+- The Worker detects new zones and sends both **email** and **push** notifications in parallel
+- Push payloads include zone metadata (instrument, type, freshness, base range, trend)
+- Notifications appear as banners even when the app is in the foreground
+
+---
+
 ## Troubleshooting
 
 ### "Untrusted Developer" error
@@ -210,7 +248,8 @@ ios/ForexZoneApp/
     │   └── AppSettings.swift       # UserDefaults-backed settings
     ├── Services/
     │   ├── MCPClient.swift         # MCP Streamable HTTP client (JSON-RPC 2.0)
-    │   └── ForexDataService.swift  # Typed wrapper for MCP tool calls
+    │   ├── ForexDataService.swift  # Typed wrapper for MCP tool calls
+    │   └── NotificationService.swift  # Push notification + Azure NH registration
     ├── ViewModels/
     │   └── ChartViewModel.swift    # Async data fetching + state
     ├── Views/

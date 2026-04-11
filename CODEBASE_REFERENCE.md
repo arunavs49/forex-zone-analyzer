@@ -32,7 +32,7 @@
 │         • ZoneMonitorService (polling loop)                   │
 │         • CandleCacheService (2000 sliding window)            │
 │         • IZoneStore (Table Storage / in-memory)              │
-│         • INotificationService (ACS Email / console)          │
+│         • INotificationService (ACS Email / push / console)    │
 ├──────────────────────────────────────────────────────────────┤
 │               Sdk.Playground (Console App)                    │
 │         Interactive menus: accounts, instruments, trades      │
@@ -66,7 +66,7 @@ Azure Infrastructure (Bicep):
 │  ├── ca-forex-mcp (MCP server, external ingress)       │
 │  └── ca-forex-mcp-worker (worker, no ingress)          │
 ├────────────────────────────────────────────────────────┤
-│  ACR │ Key Vault │ Storage Account │ ACS Email │ MI    │
+│  ACR │ Key Vault │ Storage │ ACS Email │ Notification Hub │ MI │
 └────────────────────────────────────────────────────────┘
 ```
 
@@ -404,7 +404,7 @@ Main Menu
 | Area | Current State | What's Needed |
 |------|---------------|---------------|
 | **Caching** | ✅ Worker has `CandleCacheService` (2000 sliding window) | `CachedInstrument` in DataProvider is still a no-op; consider unifying |
-| **Notifications** | ✅ ACS Email + console fallback in Worker | Add more channels (SMS, Telegram, push) |
+| **Notifications** | ✅ ACS Email + Push (Azure Notification Hubs) + console fallback in Worker | Add more channels (SMS, Telegram) |
 | **Backtesting** | None | Build historical simulation engine using cached candle data |
 | **Trade Setup** | Manual via console prompts | Automate: detect zone + trend → generate trade parameters |
 | **Configuration** | ✅ Worker uses `appsettings.json` + env vars; MCP uses Key Vault | Playground still uses console prompts |
@@ -523,10 +523,14 @@ var trend = TrendManager.Create(candles);
     │       ├── TableStorageZoneStore.cs        # Azure Table Storage zone store
     │       ├── INotificationService.cs         # Notification interface
     │       ├── ConsoleNotificationService.cs   # Console output (dev)
-    │       └── EmailNotificationService.cs     # ACS Email (production)
+    │       ├── EmailNotificationService.cs     # ACS Email (production)
+    │       ├── PushNotificationService.cs      # Azure Notification Hub → APNs
+    │       └── CompositeNotificationService.cs # Dispatches to email + push in parallel
     └── ForexZoneAnalyzer.Worker.Test/          # 63 tests
         ├── InMemoryZoneStoreTests.cs
         ├── ConsoleNotificationServiceTests.cs
+        ├── PushNotificationServiceTests.cs
+        ├── CompositeNotificationServiceTests.cs
         ├── MonitorSettingsTests.cs
         ├── ZoneChangeDetectionTests.cs
         └── CandleAlignedScheduleTests.cs
@@ -548,6 +552,7 @@ var trend = TrendManager.Create(candles);
 | Azure.Security.KeyVault.Secrets | 4.7.0 | McpServer | OANDA token retrieval from Key Vault |
 | Azure.Data.Tables | 12.9.1 | Worker | Azure Table Storage for zone persistence |
 | Azure.Communication.Email | 1.0.1 | Worker | ACS email notifications |
+| Microsoft.Azure.NotificationHubs | 4.2.0 | Worker | Push notifications via Azure Notification Hub |
 | Microsoft.Extensions.Hosting | 10.0.0 | Worker | .NET 10 Worker SDK BackgroundService |
 | Microsoft.Extensions.Caching.Memory | 10.0.0 | Worker | In-memory candle cache |
 | xUnit | 2.9.3 | Test projects | Unit testing |
@@ -566,7 +571,7 @@ var trend = TrendManager.Create(candles);
 6. ~~**EOL framework**~~ — ✅ Upgraded to .NET 10
 7. ~~**RestSharp vulnerability**~~ — ✅ Upgraded to RestSharp 112.1.0
 8. ~~**No caching**~~ — ✅ Worker has `CandleCacheService` with 2000-candle sliding window + incremental fetching
-9. ~~**No notifications**~~ — ✅ ACS Email notifications in Worker (HTML + plain text), console fallback in dev
+9. ~~**No notifications**~~ — ✅ ACS Email notifications in Worker (HTML + plain text), push notifications via Azure Notification Hubs to iOS app, console fallback in dev
 10. ~~**No configuration**~~ — ✅ Worker uses `appsettings.json` + environment variables; MCP server uses Key Vault
 11. ~~**Secret management**~~ — ✅ Azure Key Vault for OANDA token; Container App secrets for ACS connection string
 12. ~~**TrendManager fragility**~~ — ✅ Rewritten with swing-based detection; returns `TrendDirection` enum, handles edge cases (< 2 candles → Sideways), configurable via `TrendConfiguration`
@@ -594,7 +599,7 @@ forex-zone-analyzer
 ├── Worker/                  # Background monitoring: cache → detect → notify
 │   ├── Caching/             # CandleCacheService (2000 sliding window)
 │   ├── Persistence/         # IZoneStore (Table Storage / in-memory)
-│   └── Notifications/       # INotificationService (ACS Email / console)
+│   └── Notifications/       # INotificationService (ACS Email / Push / console)
 ├── Infra/                   # Bicep: ACR, Key Vault, Storage, ACS, Container Apps
 ├── CI/CD/                   # GitHub Actions with OIDC + Bicep deploy
 └── Tests/                   # 1,372 tests across 4 test projects
@@ -607,7 +612,7 @@ forex-zone-analyzer
 | High | **Backtesting engine** | Historical simulation using cached candle data to validate zone strategies |
 | High | **Trade setup automation** | Zone + trend + price proximity → automated trade parameter generation |
 | Medium | **Zone price validation** | Check if zone is on correct side of current price (TODO in source) |
-| Medium | **More notification channels** | SMS, Telegram, push notifications via ACS or third-party |
+| Medium | **More notification channels** | SMS, Telegram via ACS or third-party |
 | Low | **Unify caching** | Merge `CachedInstrument` no-op with Worker's `CandleCacheService` |
 | Low | **Dashboard API** | REST/gRPC API for real-time zone visualization |
 | Low | **Clean up Client.Test** | Fill in 1,250 stub test bodies or remove stubs |

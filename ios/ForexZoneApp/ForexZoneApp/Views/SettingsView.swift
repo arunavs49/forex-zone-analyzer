@@ -37,6 +37,33 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("Push Notifications") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Notification Hub Name")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextField("nh-forex-mcp", text: $settings.nhName)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .font(.system(.body, design: .monospaced))
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Listen Connection String")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        SecureField("Endpoint=sb://...", text: $settings.nhConnectionString)
+                            .font(.system(.body, design: .monospaced))
+                    }
+
+                    HStack {
+                        Image(systemName: settings.isPushConfigured ? "bell.badge.fill" : "bell.slash")
+                            .foregroundStyle(settings.isPushConfigured ? .green : .secondary)
+                        Text(settings.isPushConfigured ? "Push notifications configured" : "Enter hub details for zone alerts")
+                            .font(.callout)
+                    }
+                }
+
                 Section("About") {
                     LabeledContent("App", value: "Forex Zone Analyzer")
                     LabeledContent("Version", value: "1.0.0")
