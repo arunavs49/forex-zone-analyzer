@@ -29,7 +29,7 @@ struct ChartContainerView: View {
                 HStack {
                     TrendBadge(trend: viewModel.trend)
                     Spacer()
-                    Text("\(viewModel.activeZones.count) active zones")
+                    Text("\(viewModel.visibleZones.count) visible zones")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -69,8 +69,9 @@ struct ChartContainerView: View {
             } else {
                 CandlestickChartView(
                     candles: viewModel.candles,
-                    supplyZones: viewModel.supplyZones,
-                    demandZones: viewModel.demandZones
+                    supplyZones: viewModel.visibleSupplyZones,
+                    demandZones: viewModel.visibleDemandZones,
+                    focusedZone: $viewModel.focusedZone
                 )
             }
         }
@@ -97,7 +98,10 @@ struct ChartContainerView: View {
             ZoneListView(
                 supplyZones: viewModel.supplyZones,
                 demandZones: viewModel.demandZones,
-                instrument: viewModel.instrument
+                instrument: viewModel.instrument,
+                onZoneTapped: { zone in
+                    viewModel.focusedZone = zone
+                }
             )
         }
         .task {

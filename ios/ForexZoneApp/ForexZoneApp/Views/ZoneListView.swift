@@ -4,6 +4,7 @@ struct ZoneListView: View {
     let supplyZones: [Zone]
     let demandZones: [Zone]
     let instrument: Instrument
+    var onZoneTapped: ((Zone) -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -15,7 +16,13 @@ struct ZoneListView: View {
                             .foregroundStyle(.secondary)
                     }
                     ForEach(supplyZones) { zone in
-                        ZoneRow(zone: zone, color: .red)
+                        Button {
+                            dismiss()
+                            onZoneTapped?(zone)
+                        } label: {
+                            ZoneRow(zone: zone, color: .red)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
 
@@ -25,7 +32,13 @@ struct ZoneListView: View {
                             .foregroundStyle(.secondary)
                     }
                     ForEach(demandZones) { zone in
-                        ZoneRow(zone: zone, color: .green)
+                        Button {
+                            dismiss()
+                            onZoneTapped?(zone)
+                        } label: {
+                            ZoneRow(zone: zone, color: .green)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -77,6 +90,10 @@ struct ZoneRow: View {
                         .foregroundStyle(worked ? .green : .red)
                         .font(.caption)
                 }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
 
             // Price range

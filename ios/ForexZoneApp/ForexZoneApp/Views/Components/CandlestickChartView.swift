@@ -4,6 +4,7 @@ struct CandlestickChartView: View {
     let candles: [Candle]
     let supplyZones: [Zone]
     let demandZones: [Zone]
+    @Binding var focusedZone: Zone?
 
     @State private var offset: CGFloat = 0
     @State private var scale: CGFloat = 1.0
@@ -173,6 +174,20 @@ struct CandlestickChartView: View {
                     offset = chartWidth - totalWidth
                 }
             }
+            .onChange(of: focusedZone?.id) { _, newId in
+                guard let zone = focusedZone else { return }
+                let index = findCandleIndex(for: zone.startTime)
+                // Center the zone's start on screen
+                let targetX = CGFloat(index) * totalCandleWidth
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    offset = chartWidth / 2 - targetX
+                    clampOffset(chartWidth: chartWidth)
+                }
+                // Clear focus after scrolling
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    focusedZone = nil
+                }
+            }
         }
     }
 
@@ -186,6 +201,24 @@ struct CandlestickChartView: View {
         let minOffset = chartWidth - totalWidth - 50
         let maxOffset: CGFloat = 50
         offset = Swift.min(maxOffset, Swift.max(minOffset, offset))
+    }
+
+    private func findCandleIndex(for timeStr: String) -> Int {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var targetDate = formatter.date(from: timeStr)
+        if targetDate == nil {
+            formatter.formatOptions = [.withInternetDateTime]
+            targetDate = formatter.date(from: timeStr)
+        }
+        guard let target = targetDate else { return 0 }
+
+        for (index, candle) in candles.enumerated() {
+            if let candleDate = candle.date, candleDate >= target {
+                return max(0, index - 1)
+            }
+        }
+        return max(0, candles.count - 1)
     }
 
     private func formatPrice(_ price: Double) -> String {

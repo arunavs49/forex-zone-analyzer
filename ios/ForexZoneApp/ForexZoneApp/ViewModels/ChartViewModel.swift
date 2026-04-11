@@ -20,12 +20,39 @@ class ChartViewModel: ObservableObject {
         self.granularity = granularity
     }
 
+    /// Zone the user tapped in the list — chart scrolls to its formation
+    @Published var focusedZone: Zone?
+
     var allZones: [Zone] {
         supplyZones + demandZones
     }
 
     var activeZones: [Zone] {
         allZones.filter { $0.freshness != .Broken }
+    }
+
+    /// Visible zones: all untested/tested + up to 10 most recent (any state)
+    var visibleZones: [Zone] {
+        let untestedTested = allZones.filter { $0.freshness != .Broken }
+        let sortedByTime = allZones.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
+        let recent10 = Array(sortedByTime.prefix(10))
+        // Union by id
+        var seen = Set<String>()
+        var result: [Zone] = []
+        for zone in untestedTested + recent10 {
+            if seen.insert(zone.id).inserted {
+                result.append(zone)
+            }
+        }
+        return result
+    }
+
+    var visibleSupplyZones: [Zone] {
+        visibleZones.filter { $0.type == .Supply }
+    }
+
+    var visibleDemandZones: [Zone] {
+        visibleZones.filter { $0.type == .Demand }
     }
 
     func loadData(settings: AppSettings) async {
