@@ -46,9 +46,21 @@ class ForexDataService: ObservableObject {
         let data = Data(json.utf8)
         do {
             return try JSONDecoder().decode([Candle].self, from: data)
+        } catch let DecodingError.typeMismatch(type, context) {
+            let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+            let preview = String(json.prefix(500))
+            throw MCPError.decodingError(detail: "Candle type mismatch: expected \(type) at \(path)\n\(context.debugDescription)\n\nResponse preview:\n\(preview)")
+        } catch let DecodingError.keyNotFound(key, context) {
+            let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+            let preview = String(json.prefix(500))
+            throw MCPError.decodingError(detail: "Candle missing key '\(key.stringValue)' at \(path)\n\(context.debugDescription)\n\nResponse preview:\n\(preview)")
+        } catch let DecodingError.valueNotFound(type, context) {
+            let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+            let preview = String(json.prefix(500))
+            throw MCPError.decodingError(detail: "Candle null value for \(type) at \(path)\n\(context.debugDescription)\n\nResponse preview:\n\(preview)")
         } catch {
-            let preview = String(json.prefix(300))
-            throw MCPError.decodingError(detail: "Candle decode failed: \(error.localizedDescription)\n\nTool response preview:\n\(preview)")
+            let preview = String(json.prefix(500))
+            throw MCPError.decodingError(detail: "Candle decode failed: \(error)\n\nResponse preview:\n\(preview)")
         }
     }
 
@@ -69,9 +81,17 @@ class ForexDataService: ObservableObject {
         let data = Data(json.utf8)
         do {
             return try JSONDecoder().decode(ZoneAnalysisResponse.self, from: data)
+        } catch let DecodingError.typeMismatch(type, context) {
+            let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+            let preview = String(json.prefix(500))
+            throw MCPError.decodingError(detail: "Zone type mismatch: expected \(type) at \(path)\n\(context.debugDescription)\n\nResponse preview:\n\(preview)")
+        } catch let DecodingError.keyNotFound(key, context) {
+            let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+            let preview = String(json.prefix(500))
+            throw MCPError.decodingError(detail: "Zone missing key '\(key.stringValue)' at \(path)\n\(context.debugDescription)\n\nResponse preview:\n\(preview)")
         } catch {
-            let preview = String(json.prefix(300))
-            throw MCPError.decodingError(detail: "Zone decode failed: \(error.localizedDescription)\n\nTool response preview:\n\(preview)")
+            let preview = String(json.prefix(500))
+            throw MCPError.decodingError(detail: "Zone decode failed: \(error)\n\nResponse preview:\n\(preview)")
         }
     }
 
