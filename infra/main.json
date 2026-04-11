@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "8064131054783760600"
+      "templateHash": "16985146332428370189"
     }
   },
   "parameters": {
@@ -140,7 +140,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "11192181789101561855"
+              "templateHash": "5424585816057455649"
             }
           },
           "parameters": {
@@ -470,10 +470,6 @@
                           "value": "[parameters('entraIdClientId')]"
                         },
                         {
-                          "name": "AzureAd__Audience",
-                          "value": "[format('api://{0}', parameters('entraIdClientId'))]"
-                        },
-                        {
                           "name": "AZURE_CLIENT_ID",
                           "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('managedIdentityName')), '2023-07-31-preview').clientId]"
                         }
@@ -624,6 +620,18 @@
                         {
                           "name": "ZoneConfiguration__MinLegOutToBaseRangeRatio",
                           "value": "1.0"
+                        },
+                        {
+                          "name": "TrendConfiguration__SwingLookback",
+                          "value": "3"
+                        },
+                        {
+                          "name": "TrendConfiguration__TrendCandleCount",
+                          "value": "60"
+                        },
+                        {
+                          "name": "TrendConfiguration__MinSwingPoints",
+                          "value": "2"
                         },
                         {
                           "name": "AZURE_CLIENT_ID",
