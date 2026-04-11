@@ -40,7 +40,7 @@
 		6B2E34D9B7CF1890D3A6C667 /* ForexZoneAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForexZoneAppApp.swift; sourceTree = "<group>"; };
 		6D487895C4FB4843C933CCAF /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		6E933F9BB1F469635B0EE224 /* ChartViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartViewModel.swift; sourceTree = "<group>"; };
-		747C5F2A66E63D60F79B30EA /* ForexZoneApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ForexZoneApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		747C5F2A66E63D60F79B30EA /* ForexZoneApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ForexZoneApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7D7BD495D2D51F3B585F55F2 /* Candle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Candle.swift; sourceTree = "<group>"; };
 		9939B1E34E42DD72ECC23DAF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		C1E138E406E517C38D819503 /* InstrumentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstrumentListView.swift; sourceTree = "<group>"; };
@@ -354,6 +354,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D32H924842;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ForexZoneApp/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -381,6 +382,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D32H924842;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ForexZoneApp/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

@@ -26,16 +26,27 @@ struct ZoneOverlayView: View {
             ? CGFloat(findCandleIndex(for: zone.endTime) - startIndex + 1) * totalCandleWidth
             : chartWidth - xStart
 
-        let opacity: Double = switch zone.freshness {
+        let fillOpacity: Double = switch zone.freshness {
         case .Untested: 0.25
         case .Tested: 0.15
-        case .Broken: 0.05
+        case .Broken: 0.12
         }
+
+        let borderOpacity: Double = switch zone.freshness {
+        case .Untested: 0.6
+        case .Tested: 0.4
+        case .Broken: 0.35
+        }
+
+        let borderStyle: StrokeStyle = zone.freshness == .Broken
+            ? StrokeStyle(lineWidth: 1, dash: [4, 3])
+            : StrokeStyle(lineWidth: 0.5)
 
         ZStack(alignment: .topLeading) {
             Rectangle()
-                .fill(color.opacity(opacity))
-                .border(color.opacity(opacity + 0.1), width: 0.5)
+                .fill(color.opacity(fillOpacity))
+            Rectangle()
+                .stroke(color.opacity(borderOpacity), style: borderStyle)
 
             // Zone label
             if zoneWidth > 50 {
