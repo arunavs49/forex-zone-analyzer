@@ -1,9 +1,14 @@
 import Foundation
 import UserNotifications
+import BackgroundTasks
 
-/// Polls the MCP server for new zones at a configurable interval and fires local notifications.
+/// Polls the MCP server for new zones using both foreground timers and iOS Background App Refresh.
+/// Foreground: Timer fires at the configured interval while app is active.
+/// Background: BGAppRefreshTask wakes the app periodically (iOS controls exact timing, typically ~15-30 min).
 @MainActor
 class ZonePollingService: ObservableObject {
+    nonisolated static let bgTaskIdentifier = "com.forexzoneanalyzer.app.zone-refresh"
+
     @Published var lastCheckDate: Date?
     @Published var newZoneCount: Int = 0
 
@@ -17,9 +22,22 @@ class ZonePollingService: ObservableObject {
         self.settings = settings
     }
 
+    // MARK: - Lifecycle
+
+    /// Register the BG task handler — call once at app launch, before the end of applicationDidFinishLaunching.
+    nonisolated func registerBackgroundTask() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.bgTaskIdentifier, using: nil) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else { return }
+            Task { @MainActor [weak self] in
+                await self?.handleBackgroundRefresh(refreshTask)
+            }
+        }
+    }
+
     func start() {
         requestNotificationPermission()
         scheduleTimer()
+        scheduleBackgroundRefresh()
     }
 
     func stop() {
@@ -30,13 +48,15 @@ class ZonePollingService: ObservableObject {
     func restart() {
         stop()
         scheduleTimer()
+        scheduleBackgroundRefresh()
     }
+
+    // MARK: - Foreground timer
 
     private func scheduleTimer() {
         guard settings.pollEnabled, settings.isConfigured else { return }
 
         let interval = TimeInterval(settings.pollIntervalMinutes * 60)
-        // Fire immediately, then repeat
         poll()
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -49,6 +69,37 @@ class ZonePollingService: ObservableObject {
         guard settings.isConfigured else { return }
         Task { await performPoll() }
     }
+
+    // MARK: - Background App Refresh
+
+    func scheduleBackgroundRefresh() {
+        guard settings.pollEnabled, settings.isConfigured else { return }
+
+        let request = BGAppRefreshTaskRequest(identifier: Self.bgTaskIdentifier)
+        // Ask iOS to wake us no sooner than the user's configured interval
+        request.earliestBeginDate = Date(timeIntervalSinceNow: TimeInterval(settings.pollIntervalMinutes * 60))
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            print("[ZonePolling] Scheduled background refresh in ~\(settings.pollIntervalMinutes) min")
+        } catch {
+            print("[ZonePolling] Failed to schedule background refresh: \(error.localizedDescription)")
+        }
+    }
+
+    private func handleBackgroundRefresh(_ task: BGAppRefreshTask) async {
+        // Schedule the next refresh before doing work
+        scheduleBackgroundRefresh()
+
+        // Set expiration handler
+        task.expirationHandler = {
+            task.setTaskCompleted(success: false)
+        }
+
+        await performPoll()
+        task.setTaskCompleted(success: true)
+    }
+
+    // MARK: - Core polling logic
 
     private func performPoll() async {
         let dataService = ForexDataService()
@@ -95,6 +146,8 @@ class ZonePollingService: ObservableObject {
         }
     }
 
+    // MARK: - Notifications
+
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error = error {
@@ -114,7 +167,7 @@ class ZonePollingService: ObservableObject {
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
             content: content,
-            trigger: nil // deliver immediately
+            trigger: nil
         )
 
         UNUserNotificationCenter.current().add(request) { error in
