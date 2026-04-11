@@ -12,6 +12,12 @@ struct CrosshairOverlay: View {
     let totalCandleWidth: CGFloat
     let effectiveOffset: CGFloat
 
+    private static let timeFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "dd MMM HH:mm"
+        return f
+    }()
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             currentPriceLine
@@ -91,10 +97,8 @@ struct CrosshairOverlay: View {
     @ViewBuilder
     private func crosshairTimeLabel(pos: CGPoint) -> some View {
         let idx = candleIndexAtX(pos.x)
-        if idx >= 0, idx < candles.count, let date = candles[idx].date {
-            let fmt = DateFormatter()
-            let _ = fmt.dateFormat = "dd MMM HH:mm"
-            Text(fmt.string(from: date))
+        if idx >= 0, idx < candles.count, let date = parseISO8601(candles[idx].time) {
+            Text(Self.timeFmt.string(from: date))
                 .font(.system(size: 8, design: .monospaced))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 4)

@@ -20,6 +20,12 @@ struct CandlestickChartView: View {
     private let timeAxisHeight: CGFloat = 28
     private let priceAxisWidth: CGFloat = 58
 
+    private static let timeAxisFmt: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "dd MMM\nHH:mm"
+        return f
+    }()
+
     private var effectiveScale: CGFloat {
         max(0.3, min(scale * magnification, 5.0))
     }
@@ -115,22 +121,19 @@ struct CandlestickChartView: View {
                     }
                 }
                 .frame(width: chartWidth, height: chartHeight)
-
-                // Time axis labels
+                .drawingGroup() // Flatten to Metal for better perf
                 Canvas { context, size in
                     let effectiveOffset = offset + dragOffset
                     let stepValue: CGFloat = 60.0 / totalCandleWidth
                     let labelStep: Int = max(1, Int(stepValue))
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "dd MMM\nHH:mm"
                     let bodyW: CGFloat = candleWidth * effectiveScale
 
                     for i in stride(from: 0, to: candles.count, by: labelStep) {
                         let x: CGFloat = CGFloat(i) * totalCandleWidth + effectiveOffset + bodyW / 2.0
                         guard x > 0 && x < chartWidth else { continue }
 
-                        if let date = candles[i].date {
-                            let text = Text(formatter.string(from: date))
+                        if let date = parseISO8601(candles[i].time) {
+                            let text = Text(Self.timeAxisFmt.string(from: date))
                                 .font(.system(size: 7, design: .monospaced))
                                 .foregroundStyle(.secondary)
                             context.draw(
@@ -255,16 +258,9 @@ struct CandlestickChartView: View {
     }
 
     private func findCandleIndex(for timeStr: String) -> Int {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        var targetDate = formatter.date(from: timeStr)
-        if targetDate == nil {
-            formatter.formatOptions = [.withInternetDateTime]
-            targetDate = formatter.date(from: timeStr)
-        }
-        guard let target = targetDate else { return 0 }
+        guard let target = parseISO8601(timeStr) else { return 0 }
         for (index, candle) in candles.enumerated() {
-            if let candleDate = candle.date, candleDate >= target {
+            if let candleDate = parseISO8601(candle.time), candleDate >= target {
                 return max(0, index - 1)
             }
         }

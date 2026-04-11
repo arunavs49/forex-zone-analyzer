@@ -62,21 +62,13 @@ struct ZoneOverlayView: View {
     }
 
     private func findCandleIndex(for timeStr: String) -> Int {
-        guard let targetDate = parseDate(timeStr) else { return 0 }
+        guard let targetDate = parseISO8601(timeStr) else { return 0 }
 
         for (index, candle) in candles.enumerated() {
-            if let candleDate = candle.date, candleDate >= targetDate {
+            if let candleDate = parseISO8601(candle.time), candleDate >= targetDate {
                 return max(0, index - 1)
             }
         }
         return max(0, candles.count - 1)
-    }
-
-    private func parseDate(_ str: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = formatter.date(from: str) { return d }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: str)
     }
 }

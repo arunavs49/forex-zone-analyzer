@@ -1,5 +1,21 @@
 import Foundation
 
+private let _isoFormatterFrac: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return f
+}()
+
+private let _isoFormatter: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime]
+    return f
+}()
+
+func parseISO8601(_ str: String) -> Date? {
+    _isoFormatterFrac.date(from: str) ?? _isoFormatter.date(from: str)
+}
+
 struct Candle: Identifiable, Codable {
     var id: String { time }
 
@@ -22,11 +38,7 @@ struct Candle: Identifiable, Codable {
     }
 
     var date: Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = formatter.date(from: time) { return d }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: time)
+        parseISO8601(time)
     }
 
     var isBullish: Bool {

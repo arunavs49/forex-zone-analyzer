@@ -37,18 +37,10 @@ struct Zone: Identifiable, Codable {
     }
 
     var startDate: Date? {
-        parseDate(startTime)
+        parseISO8601(startTime)
     }
 
     var endDate: Date? {
-        parseDate(endTime)
-    }
-
-    private func parseDate(_ str: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = formatter.date(from: str) { return d }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: str)
+        parseISO8601(endTime)
     }
 }
