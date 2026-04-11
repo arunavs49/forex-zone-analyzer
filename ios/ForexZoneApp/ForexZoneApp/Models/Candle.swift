@@ -37,6 +37,24 @@ struct Candle: Identifiable, Codable {
         case complete = "Complete"
     }
 
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        time = try c.decode(String.self, forKey: .time)
+        open = try c.decodeIfPresent(Double.self, forKey: .open)
+        high = try c.decodeIfPresent(Double.self, forKey: .high)
+        low = try c.decodeIfPresent(Double.self, forKey: .low)
+        close = try c.decodeIfPresent(Double.self, forKey: .close)
+        // Volume may arrive as Double from some JSON serializers
+        if let intVal = try? c.decodeIfPresent(Int.self, forKey: .volume) {
+            volume = intVal
+        } else if let dblVal = try? c.decodeIfPresent(Double.self, forKey: .volume) {
+            volume = Int(dblVal)
+        } else {
+            volume = nil
+        }
+        complete = try c.decodeIfPresent(Bool.self, forKey: .complete)
+    }
+
     var date: Date? {
         parseISO8601(time)
     }
