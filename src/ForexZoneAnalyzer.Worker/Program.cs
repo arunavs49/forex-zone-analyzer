@@ -7,6 +7,7 @@ var builder = Host.CreateApplicationBuilder(args);
 // Bind configuration sections
 builder.Services.Configure<MonitorSettings>(builder.Configuration.GetSection("MonitorSettings"));
 builder.Services.Configure<ZoneAnalyzer.PatternAnalysis.ZoneConfiguration>(builder.Configuration.GetSection("ZoneConfiguration"));
+builder.Services.Configure<ZoneAnalyzer.PatternAnalysis.TrendConfiguration>(builder.Configuration.GetSection("TrendConfiguration"));
 
 // OANDA connection service
 builder.Services.AddSingleton<OandaConnectionService>();

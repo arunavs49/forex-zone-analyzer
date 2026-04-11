@@ -16,6 +16,7 @@ public class ZoneMonitorService : BackgroundService
     private readonly ILogger<ZoneMonitorService> _logger;
     private readonly MonitorSettings _monitorSettings;
     private readonly ZoneConfiguration _zoneConfig;
+    private readonly TrendConfiguration _trendConfig;
 
     public ZoneMonitorService(
         CandleCacheService candleCache,
@@ -24,7 +25,8 @@ public class ZoneMonitorService : BackgroundService
         OandaConnectionService connectionService,
         ILogger<ZoneMonitorService> logger,
         IOptions<MonitorSettings> monitorSettings,
-        IOptions<ZoneConfiguration> zoneConfig)
+        IOptions<ZoneConfiguration> zoneConfig,
+        IOptions<TrendConfiguration> trendConfig)
     {
         _candleCache = candleCache;
         _zoneStore = zoneStore;
@@ -33,6 +35,7 @@ public class ZoneMonitorService : BackgroundService
         _logger = logger;
         _monitorSettings = monitorSettings.Value;
         _zoneConfig = zoneConfig.Value;
+        _trendConfig = trendConfig.Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -208,7 +211,7 @@ public class ZoneMonitorService : BackgroundService
         try
         {
             var trendCandles = await _candleCache.GetCandlesAsync(instrument, trendGranularity, cancellationToken);
-            var trendManager = TrendManager.Create(trendCandles);
+            var trendManager = TrendManager.Create(trendCandles, _trendConfig);
             return trendManager.GetTrend();
         }
         catch (Exception ex)

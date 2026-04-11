@@ -216,16 +216,25 @@ public class InstrumentToolsTests
     {
         var candles = new List<Candlestick>();
         var baseTime = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        double price = 1.1000;
-        double step = trending ? 0.002 : -0.002;
+        double basePrice = 1.1000;
+        int waveLength = 8;
 
         for (int i = 0; i < count; i++)
         {
-            double open = price;
-            double close = price + step;
-            double high = Math.Max(open, close) + 0.001;
-            double low = Math.Min(open, close) - 0.001;
-            price = close;
+            int cycle = i / waveLength;
+            int pos = i % waveLength;
+            double trendOffset = trending ? cycle * 0.0040 : -cycle * 0.0040;
+
+            double mid;
+            if (pos < 5)
+                mid = basePrice + trendOffset + pos * 0.0010;
+            else
+                mid = basePrice + trendOffset + 0.0040 - (pos - 4) * 0.0010;
+
+            double open = mid - 0.0001;
+            double close = mid + 0.0001;
+            double high = mid + 0.0005;
+            double low = mid - 0.0005;
 
             candles.Add(new Candlestick
             {

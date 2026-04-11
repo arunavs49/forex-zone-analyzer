@@ -3,83 +3,169 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using GeriRemenyi.Oanda.V20.Client.Model;
-using MathNet.Numerics;
 
 namespace ZoneAnalyzer.PatternAnalysis
 {
+    public enum TrendDirection
+    {
+        Up,
+        Down,
+        Sideways
+    }
+
     public class TrendManager
     {
-        private readonly IOrderedEnumerable<Candlestick> candlesticks;
-        public static TrendManager Create(IEnumerable<Candlestick> candlesticks)
+        private readonly List<Candlestick> _candlesticks;
+        private readonly TrendConfiguration _config;
+
+        public static TrendManager Create(IEnumerable<Candlestick> candlesticks, TrendConfiguration? config = null)
         {
-            TrendManager result = new TrendManager(candlesticks.ToList().OrderBy(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture)));
-            return result;
+            var sorted = candlesticks.ToList()
+                .OrderBy(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture))
+                .ToList();
+            return new TrendManager(sorted, config ?? new TrendConfiguration());
         }
 
-        private TrendManager(IOrderedEnumerable<Candlestick> candlesticks)
+        private TrendManager(List<Candlestick> candlesticks, TrendConfiguration config)
         {
-            this.candlesticks = candlesticks;
+            _candlesticks = candlesticks;
+            _config = config;
         }
 
         public string GetTrend(DateTime? currentTimeForTrend = null)
         {
-            if (!currentTimeForTrend.HasValue)
-            {
-                currentTimeForTrend = candlesticks.Max(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture));
-            }
-
-            // Determine if the trend is Up, Down or Sideways using the Close price of the candlesticks.
-            IOrderedEnumerable<Candlestick> widerSample = this.candlesticks.Where(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture) <= currentTimeForTrend)
-                .OrderBy(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture));
-            double[] trendPrices = widerSample
-                .TakeLast(Math.Min(60, widerSample.Count()))
-                .OrderBy(c => DateTime.Parse(c.Time, CultureInfo.InvariantCulture))
-                .Select(c => c.Mid.C)
-                .ToArray();
-
-            return GetTrendDirection(trendPrices).ToString();
+            return GetTrendDirection(currentTimeForTrend).ToString();
         }
 
-
-        private static Trend GetTrendDirection(double[] data, int degree = 1)
+        public TrendDirection GetTrendDirection(DateTime? currentTimeForTrend = null)
         {
-            // data is an array of closing prices
-            // degree is the degree of the polynomial to fit
+            var candles = GetRelevantCandles(currentTimeForTrend);
+            if (candles.Count < _config.SwingLookback * 2 + 1)
+                return TrendDirection.Sideways;
 
-            // create an index array for the data
-            double[] index = new double[data.Length];
-            for (int i = 0; i < index.Length; i++)
-            {
-                index[i] = i;
-            }
+            var swingHighs = FindSwingHighs(candles, _config.SwingLookback);
+            var swingLows = FindSwingLows(candles, _config.SwingLookback);
 
-            // fit a polynomial of the given degree to the data
-            double[] coeffs = Fit.Polynomial(index, data, degree);
+            if (swingHighs.Count < _config.MinSwingPoints || swingLows.Count < _config.MinSwingPoints)
+                return TrendDirection.Sideways;
 
-            // get the slope of the polynomial
-            double slope = coeffs[1];
+            // Compare the last two swing highs and last two swing lows
+            var lastHighs = swingHighs.TakeLast(2).ToArray();
+            var lastLows = swingLows.TakeLast(2).ToArray();
 
-            // determine the trend direction based on the slope
-            if (slope > 0)
-            {
-                return Trend.Up;
-            }
-            else if (slope < 0)
-            {
-                return Trend.Down;
-            }
-            else
-            {
-                return Trend.Sideways;
-            }
+            bool higherHigh = lastHighs[1].Price > lastHighs[0].Price;
+            bool higherLow = lastLows[1].Price > lastLows[0].Price;
+            bool lowerHigh = lastHighs[1].Price < lastHighs[0].Price;
+            bool lowerLow = lastLows[1].Price < lastLows[0].Price;
+
+            if (higherHigh && higherLow)
+                return TrendDirection.Up;
+            if (lowerHigh && lowerLow)
+                return TrendDirection.Down;
+
+            return TrendDirection.Sideways;
         }
 
-
-        private enum Trend
+        /// <summary>
+        /// Returns identified swing highs for diagnostic/display purposes.
+        /// </summary>
+        public List<SwingPoint> GetSwingHighs(DateTime? currentTimeForTrend = null)
         {
-            Up,
-            Down,
-            Sideways
-        };
+            var candles = GetRelevantCandles(currentTimeForTrend);
+            return FindSwingHighs(candles, _config.SwingLookback);
+        }
+
+        /// <summary>
+        /// Returns identified swing lows for diagnostic/display purposes.
+        /// </summary>
+        public List<SwingPoint> GetSwingLows(DateTime? currentTimeForTrend = null)
+        {
+            var candles = GetRelevantCandles(currentTimeForTrend);
+            return FindSwingLows(candles, _config.SwingLookback);
+        }
+
+        private List<Candlestick> GetRelevantCandles(DateTime? currentTimeForTrend)
+        {
+            IEnumerable<Candlestick> filtered = _candlesticks;
+
+            if (currentTimeForTrend.HasValue)
+            {
+                filtered = _candlesticks.Where(c =>
+                    DateTime.Parse(c.Time, CultureInfo.InvariantCulture) <= currentTimeForTrend.Value);
+            }
+
+            return filtered.TakeLast(_config.TrendCandleCount).ToList();
+        }
+
+        internal static List<SwingPoint> FindSwingHighs(List<Candlestick> candles, int lookback)
+        {
+            var swingHighs = new List<SwingPoint>();
+
+            for (int i = lookback; i < candles.Count - lookback; i++)
+            {
+                var high = candles[i].Mid.H;
+                bool isSwingHigh = true;
+
+                for (int j = 1; j <= lookback; j++)
+                {
+                    if (candles[i - j].Mid.H > high || candles[i + j].Mid.H > high)
+                    {
+                        isSwingHigh = false;
+                        break;
+                    }
+                }
+
+                if (isSwingHigh)
+                {
+                    swingHighs.Add(new SwingPoint
+                    {
+                        Index = i,
+                        Price = high,
+                        Time = DateTime.Parse(candles[i].Time, CultureInfo.InvariantCulture)
+                    });
+                }
+            }
+
+            return swingHighs;
+        }
+
+        internal static List<SwingPoint> FindSwingLows(List<Candlestick> candles, int lookback)
+        {
+            var swingLows = new List<SwingPoint>();
+
+            for (int i = lookback; i < candles.Count - lookback; i++)
+            {
+                var low = candles[i].Mid.L;
+                bool isSwingLow = true;
+
+                for (int j = 1; j <= lookback; j++)
+                {
+                    if (candles[i - j].Mid.L < low || candles[i + j].Mid.L < low)
+                    {
+                        isSwingLow = false;
+                        break;
+                    }
+                }
+
+                if (isSwingLow)
+                {
+                    swingLows.Add(new SwingPoint
+                    {
+                        Index = i,
+                        Price = low,
+                        Time = DateTime.Parse(candles[i].Time, CultureInfo.InvariantCulture)
+                    });
+                }
+            }
+
+            return swingLows;
+        }
+    }
+
+    public class SwingPoint
+    {
+        public int Index { get; set; }
+        public double Price { get; set; }
+        public DateTime Time { get; set; }
     }
 }

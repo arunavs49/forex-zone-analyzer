@@ -414,6 +414,18 @@ resource workerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWorker) 
               value: '1.0'
             }
             {
+              name: 'TrendConfiguration__SwingLookback'
+              value: '3'
+            }
+            {
+              name: 'TrendConfiguration__TrendCandleCount'
+              value: '60'
+            }
+            {
+              name: 'TrendConfiguration__MinSwingPoints'
+              value: '2'
+            }
+            {
               name: 'AZURE_CLIENT_ID'
               value: managedIdentity.properties.clientId
             }
