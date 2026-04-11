@@ -8,26 +8,22 @@ class AppSettings: ObservableObject {
     @Published var bearerToken: String {
         didSet { UserDefaults.standard.set(bearerToken, forKey: "bearerToken") }
     }
-    @Published var nhConnectionString: String {
-        didSet { UserDefaults.standard.set(nhConnectionString, forKey: "nhConnectionString") }
+    @Published var pollEnabled: Bool {
+        didSet { UserDefaults.standard.set(pollEnabled, forKey: "pollEnabled") }
     }
-    @Published var nhName: String {
-        didSet { UserDefaults.standard.set(nhName, forKey: "nhName") }
+    @Published var pollIntervalMinutes: Int {
+        didSet { UserDefaults.standard.set(pollIntervalMinutes, forKey: "pollIntervalMinutes") }
     }
 
     init() {
         self.mcpServerURL = UserDefaults.standard.string(forKey: "mcpServerURL")
             ?? "https://your-container-app.azurecontainerapps.io/mcp"
         self.bearerToken = UserDefaults.standard.string(forKey: "bearerToken") ?? ""
-        self.nhConnectionString = UserDefaults.standard.string(forKey: "nhConnectionString") ?? ""
-        self.nhName = UserDefaults.standard.string(forKey: "nhName") ?? ""
+        self.pollEnabled = UserDefaults.standard.object(forKey: "pollEnabled") as? Bool ?? true
+        self.pollIntervalMinutes = UserDefaults.standard.object(forKey: "pollIntervalMinutes") as? Int ?? 15
     }
 
     var isConfigured: Bool {
         !mcpServerURL.isEmpty && (mcpServerURL.hasPrefix("https://") || mcpServerURL.hasPrefix("http://"))
-    }
-
-    var isPushConfigured: Bool {
-        !nhConnectionString.isEmpty && !nhName.isEmpty
     }
 }

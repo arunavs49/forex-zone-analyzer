@@ -81,10 +81,7 @@ jobs:
               imageTag="${{ github.sha }}" \
               deployApp=true \
               deployWorker=true \
-              notificationEmail="${{ secrets.NOTIFICATION_EMAIL }}" \
-              apnsKeyId="${{ secrets.APNS_KEY_ID }}" \
-              apnsTeamId="${{ secrets.APNS_TEAM_ID }}" \
-              apnsSigningKey="${{ secrets.APNS_SIGNING_KEY }}"
+              notificationEmail="${{ secrets.NOTIFICATION_EMAIL }}"
 
       - name: Deploy MCP server to Container Apps
         run: |

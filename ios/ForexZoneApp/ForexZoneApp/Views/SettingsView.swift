@@ -37,30 +37,24 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Push Notifications") {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Notification Hub Name")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        TextField("nh-forex-mcp", text: $settings.nhName)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .font(.system(.body, design: .monospaced))
-                    }
+                Section("Zone Alerts (Background Polling)") {
+                    Toggle("Enable zone polling", isOn: $settings.pollEnabled)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Listen Connection String")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        SecureField("Endpoint=sb://...", text: $settings.nhConnectionString)
-                            .font(.system(.body, design: .monospaced))
-                    }
+                    if settings.pollEnabled {
+                        Picker("Check interval", selection: $settings.pollIntervalMinutes) {
+                            Text("5 min").tag(5)
+                            Text("15 min").tag(15)
+                            Text("30 min").tag(30)
+                            Text("60 min").tag(60)
+                        }
 
-                    HStack {
-                        Image(systemName: settings.isPushConfigured ? "bell.badge.fill" : "bell.slash")
-                            .foregroundStyle(settings.isPushConfigured ? .green : .secondary)
-                        Text(settings.isPushConfigured ? "Push notifications configured" : "Enter hub details for zone alerts")
-                            .font(.callout)
+                        HStack {
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                                .foregroundStyle(Color("AccentTeal"))
+                            Text("Checks for new zones every \(settings.pollIntervalMinutes) min while app is open")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 

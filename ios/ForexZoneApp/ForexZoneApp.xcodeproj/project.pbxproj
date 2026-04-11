@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		12129277CD9865FCDAC47565 /* ZonePollingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B882063A755E1A70BDC42889 /* ZonePollingService.swift */; };
 		1E75C7DA075499ACA7B41BCB /* ChartContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB0BBBCB00868F9418492F0 /* ChartContainerView.swift */; };
 		3357BAFAC5F837D3F778F0C0 /* Zone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 542713005EAEFEB6D7911B89 /* Zone.swift */; };
 		3B26EB22FAFB7D2F465865A0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D487895C4FB4843C933CCAF /* AppSettings.swift */; };
@@ -40,9 +41,10 @@
 		6B2E34D9B7CF1890D3A6C667 /* ForexZoneAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForexZoneAppApp.swift; sourceTree = "<group>"; };
 		6D487895C4FB4843C933CCAF /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		6E933F9BB1F469635B0EE224 /* ChartViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartViewModel.swift; sourceTree = "<group>"; };
-		747C5F2A66E63D60F79B30EA /* ForexZoneApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ForexZoneApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		747C5F2A66E63D60F79B30EA /* ForexZoneApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ForexZoneApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7D7BD495D2D51F3B585F55F2 /* Candle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Candle.swift; sourceTree = "<group>"; };
 		9939B1E34E42DD72ECC23DAF /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B882063A755E1A70BDC42889 /* ZonePollingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZonePollingService.swift; sourceTree = "<group>"; };
 		C1E138E406E517C38D819503 /* InstrumentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstrumentListView.swift; sourceTree = "<group>"; };
 		C24E3F85291C0A1BA59B6402 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		CC49918940FDFB1645063475 /* PriceGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceGridView.swift; sourceTree = "<group>"; };
@@ -132,6 +134,7 @@
 			children = (
 				E158F52A35C913D7549C33A7 /* ForexDataService.swift */,
 				050DF6E41D417D4AAEE5059F /* MCPClient.swift */,
+				B882063A755E1A70BDC42889 /* ZonePollingService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -224,6 +227,7 @@
 				9B311C7A17236F66C7914B0F /* ZoneAnalysisResponse.swift in Sources */,
 				C15BBC674CC2E88339092F2D /* ZoneListView.swift in Sources */,
 				F7F941964E409B066778ED9D /* ZoneOverlayView.swift in Sources */,
+				12129277CD9865FCDAC47565 /* ZonePollingService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -354,7 +358,6 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D32H924842;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ForexZoneApp/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -382,7 +385,6 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D32H924842;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ForexZoneApp/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

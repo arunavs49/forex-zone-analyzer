@@ -32,19 +32,6 @@ param deployWorker bool = true
 @description('Notification email address for zone alerts')
 param notificationEmail string = ''
 
-@description('APNs key ID for push notifications')
-param apnsKeyId string = ''
-
-@description('APNs team ID for push notifications')
-param apnsTeamId string = ''
-
-@description('APNs bundle ID for push notifications')
-param apnsBundleId string = 'com.forexzone.ForexZoneApp'
-
-@description('APNs signing key (p8 file contents)')
-@secure()
-param apnsSigningKey string = ''
-
 var resourceGroupName = 'rg-${baseName}'
 
 resource rg 'Microsoft.Resources/resourceGroups@2024-07-01' = {
@@ -66,10 +53,6 @@ module resources 'modules/resources.bicep' = {
     deployApp: deployApp
     deployWorker: deployWorker
     notificationEmail: notificationEmail
-    apnsKeyId: apnsKeyId
-    apnsTeamId: apnsTeamId
-    apnsBundleId: apnsBundleId
-    apnsSigningKey: apnsSigningKey
   }
 }
 

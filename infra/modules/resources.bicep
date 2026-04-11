@@ -29,19 +29,6 @@ param deployWorker bool
 @description('Notification email address')
 param notificationEmail string
 
-@description('APNs key ID for push notifications')
-param apnsKeyId string
-
-@description('APNs team ID for push notifications')
-param apnsTeamId string
-
-@description('APNs bundle ID for push notifications')
-param apnsBundleId string
-
-@description('APNs signing key (p8 file contents)')
-@secure()
-param apnsSigningKey string
-
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var acrName = replace('acr${baseName}${uniqueSuffix}', '-', '')
 var keyVaultName = 'kv-${baseName}-${take(uniqueSuffix, 6)}'
@@ -53,8 +40,6 @@ var workerAppName = 'ca-${baseName}-worker'
 var storageAccountName = replace('st${baseName}${take(uniqueSuffix, 8)}', '-', '')
 var communicationServiceName = 'acs-${baseName}'
 var emailServiceName = 'acs-email-${baseName}'
-var notificationHubNamespaceName = 'nhns-${baseName}'
-var notificationHubName = 'nh-${baseName}'
 
 // User-assigned managed identity for the Container App
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
@@ -200,65 +185,6 @@ resource acsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
   }
 }
 
-// Azure Notification Hub Namespace (Free tier)
-resource notificationHubNamespace 'Microsoft.NotificationHubs/namespaces@2023-10-01-preview' = {
-  name: notificationHubNamespaceName
-  location: location
-  sku: {
-    name: 'Free'
-  }
-  properties: {
-    zoneRedundancy: 'Disabled'
-  }
-}
-
-// Azure Notification Hub with APNs token auth
-resource notificationHub 'Microsoft.NotificationHubs/namespaces/notificationHubs@2023-10-01-preview' = {
-  parent: notificationHubNamespace
-  name: notificationHubName
-  location: location
-  properties: {
-    apnsCredential: !empty(apnsSigningKey) ? {
-      properties: {
-        appName: apnsBundleId
-        appId: apnsTeamId
-        keyId: apnsKeyId
-        token: apnsSigningKey
-        endpoint: 'https://api.development.push.apple.com:443/3/device'
-      }
-    } : null
-  }
-}
-
-// Reference NH authorization rules for connection strings
-resource nhFullAccessRule 'Microsoft.NotificationHubs/namespaces/notificationHubs/authorizationRules@2023-10-01-preview' existing = {
-  parent: notificationHub
-  name: 'DefaultFullSharedAccessSignature'
-}
-
-resource nhListenAccessRule 'Microsoft.NotificationHubs/namespaces/notificationHubs/authorizationRules@2023-10-01-preview' existing = {
-  parent: notificationHub
-  name: 'DefaultListenSharedAccessSignature'
-}
-
-// Store NH connection string in Key Vault (DefaultFullSharedAccessSignature)
-resource nhConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: keyVault
-  name: 'nh-connection-string'
-  properties: {
-    value: nhFullAccessRule.listKeys().primaryConnectionString
-  }
-}
-
-// Store NH listen-only connection string for the iOS app (DefaultListenSharedAccessSignature)
-resource nhListenConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: keyVault
-  name: 'nh-listen-connection-string'
-  properties: {
-    value: nhListenAccessRule.listKeys().primaryConnectionString
-  }
-}
-
 // Container Apps Environment
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: containerAppEnvName
@@ -385,10 +311,6 @@ resource workerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWorker) 
           name: 'acs-connection-string'
           value: communicationService.listKeys().primaryConnectionString
         }
-        {
-          name: 'nh-connection-string'
-          value: nhFullAccessRule.listKeys().primaryConnectionString
-        }
       ]
       registries: [
         {
@@ -438,14 +360,6 @@ resource workerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployWorker) 
             {
               name: 'Notification__AcsConnectionString'
               secretRef: 'acs-connection-string'
-            }
-            {
-              name: 'Notification__NotificationHubConnectionString'
-              secretRef: 'nh-connection-string'
-            }
-            {
-              name: 'Notification__NotificationHubName'
-              value: notificationHub.name
             }
             {
               name: 'MonitorSettings__Instruments__0'
@@ -531,4 +445,3 @@ output containerRegistryLoginServer string = acr.properties.loginServer
 output keyVaultName string = keyVault.name
 output managedIdentityClientId string = managedIdentity.properties.clientId
 output storageAccountName string = storageAccount.name
-output notificationHubName string = notificationHub.name
