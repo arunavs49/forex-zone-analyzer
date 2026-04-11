@@ -46,7 +46,7 @@
 		81B76E22F142AC7F7553CE70 /* Zone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Zone.swift; sourceTree = "<group>"; };
 		955CD25A118FDB3E0DB8657C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AD9C81C54C68A9C11EBECBB2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		AF6587F7464C7AB0FB86C461 /* ZoneRadar.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ZoneRadar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AF6587F7464C7AB0FB86C461 /* ZoneRadar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ZoneRadar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C38E54C747C8F78E72ABD72B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D2E3FC97B0C0E9442ED9436D /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		E327367CBB9D8A5404804F11 /* CrosshairOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrosshairOverlay.swift; sourceTree = "<group>"; };
@@ -382,6 +382,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D32H924842;
 				INFOPLIST_FILE = ForexZoneApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -404,6 +405,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D32H924842;
 				INFOPLIST_FILE = ForexZoneApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (

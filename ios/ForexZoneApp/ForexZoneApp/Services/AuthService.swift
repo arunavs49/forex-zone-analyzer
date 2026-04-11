@@ -14,9 +14,9 @@ class AuthService: ObservableObject {
 
     // Entra ID app registration for the MCP server
     static let clientId = "c1bba0b6-1125-40c1-b496-0ef773bfd7b4"
-    static let tenantId = "common" // multi-tenant; restrict if single-tenant
+    static let tenantId = "3a462f81-8b1f-48fc-a51d-628a200d7c53"
     static let redirectUri = "msauth.com.zoneradar.app://auth"
-    static let scopes = ["api://c1bba0b6-1125-40c1-b496-0ef773bfd7b4/.default"]
+    static let scopes = ["c1bba0b6-1125-40c1-b496-0ef773bfd7b4/.default"]
 
     init() {
         setupMSAL()
@@ -38,10 +38,14 @@ class AuthService: ObservableObject {
             redirectUri: Self.redirectUri,
             authority: authority
         )
+        // Disable broker (Authenticator app) — use embedded webview for simpler setup
+        config.cacheConfig.keychainSharingGroup = "com.microsoft.adalcache"
 
         do {
             msalApplication = try MSALPublicClientApplication(configuration: config)
         } catch {
+            // Log full error for debugging
+            print("[AuthService] MSAL init failed: \(error)")
             errorMessage = "MSAL init failed: \(error.localizedDescription)"
         }
     }
@@ -80,8 +84,11 @@ class AuthService: ObservableObject {
             isSignedIn = true
             userDisplayName = result.account.username
             errorMessage = nil
-        } catch {
-            errorMessage = "Sign-in failed: \(error.localizedDescription)"
+        } catch let error as NSError {
+            print("[AuthService] Sign-in failed: domain=\(error.domain) code=\(error.code)")
+            print("[AuthService] Description: \(error.localizedDescription)")
+            print("[AuthService] User info: \(error.userInfo)")
+            errorMessage = "Sign-in failed (\(error.code)): \(error.userInfo["MSALOAuthErrorKey"] ?? error.localizedDescription)"
         }
     }
 
