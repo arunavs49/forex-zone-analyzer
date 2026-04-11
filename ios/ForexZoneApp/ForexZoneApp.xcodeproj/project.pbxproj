@@ -45,6 +45,7 @@
 		C24E3F85291C0A1BA59B6402 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		CC49918940FDFB1645063475 /* PriceGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceGridView.swift; sourceTree = "<group>"; };
 		CCB0BBBCB00868F9418492F0 /* ChartContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartContainerView.swift; sourceTree = "<group>"; };
+		D4C8933D6973CF96993C6E33 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E158F52A35C913D7549C33A7 /* ForexDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForexDataService.swift; sourceTree = "<group>"; };
 		EF952A46DC01D4A93ABEFEFD /* CandlestickChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandlestickChartView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -56,6 +57,7 @@
 				32C6CADB7178B5B26ACE4345 /* Assets.xcassets */,
 				C24E3F85291C0A1BA59B6402 /* ContentView.swift */,
 				6B2E34D9B7CF1890D3A6C667 /* ForexZoneAppApp.swift */,
+				D4C8933D6973CF96993C6E33 /* Info.plist */,
 				B3471B47AD8FD2CA8A7D27F9 /* Models */,
 				E1C79162C3F5CD7E27790A33 /* Services */,
 				BAC48C09A3C3D0D128F60C8F /* ViewModels */,
@@ -349,6 +351,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ForexZoneApp/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -375,6 +378,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ForexZoneApp/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

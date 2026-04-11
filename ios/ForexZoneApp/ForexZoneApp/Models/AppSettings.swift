@@ -16,6 +16,6 @@ class AppSettings: ObservableObject {
     }
 
     var isConfigured: Bool {
-        !mcpServerURL.isEmpty && mcpServerURL.hasPrefix("https://")
+        !mcpServerURL.isEmpty && (mcpServerURL.hasPrefix("https://") || mcpServerURL.hasPrefix("http://"))
     }
 }

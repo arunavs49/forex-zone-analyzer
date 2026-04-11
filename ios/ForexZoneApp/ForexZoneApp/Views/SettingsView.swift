@@ -32,7 +32,7 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: settings.isConfigured ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .foregroundStyle(settings.isConfigured ? .green : .red)
-                        Text(settings.isConfigured ? "Server configured" : "URL must start with https://")
+                        Text(settings.isConfigured ? "Server configured" : "Enter a valid http:// or https:// URL")
                             .font(.callout)
                     }
                 }
