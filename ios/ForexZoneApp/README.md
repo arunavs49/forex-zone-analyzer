@@ -103,20 +103,56 @@ If you haven't already:
 
 ### Step 6: Configure the MCP Server
 
-Once the app is running on your iPhone:
+Once the app is running on your iPhone, tap the **⚙️ gear icon** and configure the connection. You have two options:
 
-1. Tap the **⚙️ gear icon** in the top-right corner
-2. Enter your **MCP Server URL**:
+#### Option A: Connect to Azure (Production)
+
+Use this if you've deployed the MCP server to Azure Container Apps.
+
+1. **Get your MCP server URL:**
+   ```bash
+   FQDN=$(az containerapp show --name ca-forex-mcp --resource-group rg-forex-mcp \
+     --query properties.configuration.ingress.fqdn -o tsv)
+   echo "https://${FQDN}/mcp"
    ```
-   https://<your-container-app>.azurecontainerapps.io/mcp
+2. **Get an Entra ID bearer token:**
+   ```bash
+   az account get-access-token --resource api://<your-app-client-id> --query accessToken -o tsv
    ```
-3. Enter your **Entra ID Bearer Token**:
-   - Get a token using the Azure CLI:
-     ```bash
-     az account get-access-token --resource api://<your-app-client-id> --query accessToken -o tsv
-     ```
-   - Or use the included script: `./scripts/get-mcp-token.sh`
+   Or use the included script: `./scripts/get-mcp-token.sh`
+3. In the app settings, enter:
+   - **Server URL**: `https://<fqdn>/mcp`
+   - **Bearer Token**: paste the token from above
 4. Tap **Done**
+
+> **Note:** Entra ID tokens expire after ~1 hour. Generate a fresh token when the app shows auth errors.
+
+#### Option B: Connect to Local Dev Server
+
+Use this to test against the MCP server running on your Mac. No Entra ID token is needed (auth is disabled in dev mode).
+
+1. **Set up user secrets** (one-time):
+   ```bash
+   cd src/ForexZoneAnalyzer.McpServer
+   dotnet user-secrets init
+   dotnet user-secrets set "Oanda:ApiToken" "<your-oanda-api-token>"
+   dotnet user-secrets set "Oanda:ConnectionType" "FxPractice"
+   ```
+2. **Start the MCP server** bound to all interfaces:
+   ```bash
+   dotnet run --urls "http://0.0.0.0:5000"
+   ```
+3. **Find your Mac's local IP:**
+   ```bash
+   ipconfig getifaddr en0
+   ```
+   This returns something like `192.168.1.42`.
+4. In the app settings, enter:
+   - **Server URL**: `http://192.168.1.42:5000/mcp` (use your Mac's actual IP)
+   - **Bearer Token**: leave empty
+5. Tap **Done**
+
+> **Important:** Your iPhone and Mac must be on the same Wi-Fi network. The app includes `NSAllowsLocalNetworking` so HTTP connections to local network addresses are permitted.
 
 ### Step 7: Use the App
 
