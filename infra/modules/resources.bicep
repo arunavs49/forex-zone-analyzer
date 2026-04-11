@@ -221,30 +221,34 @@ resource notificationHub 'Microsoft.NotificationHubs/namespaces/notificationHubs
     apnsCredential: !empty(apnsSigningKey) ? {
       properties: {
         appName: apnsBundleId
-        appId: apnsBundleId
+        appId: apnsTeamId
         keyId: apnsKeyId
         token: apnsSigningKey
-        endpoint: 'https://api.sandbox.push.apple.com:443/3/device'
+        endpoint: 'https://api.development.push.apple.com:443/3/device'
       }
     } : null
   }
 }
 
 // Store NH connection string in Key Vault (DefaultFullSharedAccessSignature)
+#disable-next-line use-resource-symbol-reference
 resource nhConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name: 'nh-connection-string'
   properties: {
+    #disable-next-line use-resource-symbol-reference
     value: listKeys(notificationHub.id, '2023-10-01-preview').value[0].value
   }
 }
 
-// Store NH listen-only connection string for the iOS app
+// Store NH listen-only connection string for the iOS app (DefaultListenSharedAccessSignature)
+#disable-next-line use-resource-symbol-reference
 resource nhListenConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name: 'nh-listen-connection-string'
   properties: {
-    value: listKeys(notificationHub.id, '2023-10-01-preview').value[1].value
+    #disable-next-line use-resource-symbol-reference
+    value: filter(listKeys(notificationHub.id, '2023-10-01-preview').value, k => contains(k.keyName, 'Listen'))[0].value
   }
 }
 
