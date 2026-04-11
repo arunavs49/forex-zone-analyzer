@@ -265,10 +265,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) 
               value: entraIdClientId
             }
             {
-              name: 'AzureAd__Audience'
-              value: 'api://${entraIdClientId}'
-            }
-            {
               name: 'AZURE_CLIENT_ID'
               value: managedIdentity.properties.clientId
             }
