@@ -96,8 +96,8 @@ struct ChartContainerView: View {
         }
         .sheet(isPresented: $showZoneList) {
             ZoneListView(
-                supplyZones: viewModel.supplyZones,
-                demandZones: viewModel.demandZones,
+                supplyZones: viewModel.visibleSupplyZones,
+                demandZones: viewModel.visibleDemandZones,
                 instrument: viewModel.instrument,
                 onZoneTapped: { zone in
                     viewModel.focusedZone = zone

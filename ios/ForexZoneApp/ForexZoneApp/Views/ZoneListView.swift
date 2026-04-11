@@ -109,6 +109,14 @@ struct ZoneRow: View {
                 Spacer()
 
                 VStack(alignment: .trailing) {
+                    Text("Age")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(zoneAge)
+                        .font(.caption)
+                }
+
+                VStack(alignment: .trailing) {
                     Text("Width")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -126,6 +134,19 @@ struct ZoneRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private var zoneAge: String {
+        guard let start = zone.startDate else { return "—" }
+        let interval = Date().timeIntervalSince(start)
+        let minutes = Int(interval / 60)
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        if hours < 24 { return "\(hours)h" }
+        let days = hours / 24
+        if days < 7 { return "\(days)d" }
+        let weeks = days / 7
+        return "\(weeks)w"
     }
 
     private func formatPrice(_ price: Double) -> String {
