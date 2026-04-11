@@ -139,14 +139,14 @@ struct ZoneRow: View {
     private var zoneAge: String {
         guard let start = zone.startDate else { return "—" }
         let interval = Date().timeIntervalSince(start)
-        let minutes = Int(interval / 60)
-        if minutes < 60 { return "\(minutes)m" }
-        let hours = minutes / 60
-        if hours < 24 { return "\(hours)h" }
-        let days = hours / 24
-        if days < 7 { return "\(days)d" }
-        let weeks = days / 7
-        return "\(weeks)w"
+        let totalMinutes = Int(interval / 60)
+        if totalMinutes < 60 { return "now" }
+        let totalHours = totalMinutes / 60
+        if totalHours < 24 { return "\(totalHours)h" }
+        let days = totalHours / 24
+        let remainingHours = totalHours % 24
+        if remainingHours == 0 { return "\(days)d" }
+        return "\(days)d \(remainingHours)h"
     }
 
     private func formatPrice(_ price: Double) -> String {
