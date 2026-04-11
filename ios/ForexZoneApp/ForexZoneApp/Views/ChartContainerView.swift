@@ -24,24 +24,38 @@ struct ChartContainerView: View {
                 Task { await viewModel.loadData(settings: settings) }
             }
 
-            // Trend badge
+            // Info bar: trend + zone count
             if !viewModel.trend.isEmpty {
-                HStack {
+                HStack(spacing: 8) {
                     TrendBadge(trend: viewModel.trend)
+
                     Spacer()
-                    Text("\(viewModel.visibleZones.count) visible zones")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+
+                    // Zone counts
+                    HStack(spacing: 4) {
+                        Circle().fill(.red.opacity(0.6)).frame(width: 6, height: 6)
+                        Text("\(viewModel.visibleSupplyZones.count)")
+                            .font(.caption2.weight(.medium))
+                    }
+                    HStack(spacing: 4) {
+                        Circle().fill(.green.opacity(0.6)).frame(width: 6, height: 6)
+                        Text("\(viewModel.visibleDemandZones.count)")
+                            .font(.caption2.weight(.medium))
+                    }
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 4)
             }
 
-            // Chart
+            // Chart area
             if viewModel.isLoading {
                 Spacer()
-                ProgressView("Loading chart data...")
-                    .progressViewStyle(.circular)
+                VStack(spacing: 16) {
+                    ChartLoadingView()
+                    Text("Loading chart data...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
             } else if let error = viewModel.error {
                 ScrollView {
@@ -63,8 +77,13 @@ struct ChartContainerView: View {
                 }
             } else if viewModel.candles.isEmpty {
                 Spacer()
-                Text("No data available")
-                    .foregroundStyle(.secondary)
+                VStack(spacing: 8) {
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.tertiary)
+                    Text("No data available")
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
             } else {
                 CandlestickChartView(
@@ -73,8 +92,12 @@ struct ChartContainerView: View {
                     demandZones: viewModel.visibleDemandZones,
                     focusedZone: $viewModel.focusedZone
                 )
+                .background(Color(red: 0.08, green: 0.09, blue: 0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(.horizontal, 4)
             }
         }
+        .background(Color(.systemBackground))
         .navigationTitle(viewModel.instrument.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -110,20 +133,55 @@ struct ChartContainerView: View {
     }
 }
 
+// MARK: - Animated loading placeholder
+
+struct ChartLoadingView: View {
+    @State private var phase: CGFloat = 0
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<7, id: \.self) { i in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(i % 2 == 0 ? Color.green.opacity(0.4) : Color.red.opacity(0.4))
+                    .frame(width: 8, height: barHeight(for: i))
+                    .animation(
+                        .easeInOut(duration: 0.6)
+                        .repeatForever(autoreverses: true)
+                        .delay(Double(i) * 0.08),
+                        value: phase
+                    )
+            }
+        }
+        .onAppear { phase = 1 }
+    }
+
+    private func barHeight(for index: Int) -> CGFloat {
+        let base: CGFloat = phase == 0 ? 20 : 50
+        let variance: CGFloat = phase == 0 ? 0 : CGFloat(index % 3) * 10
+        return base + variance
+    }
+}
+
+// MARK: - Trend badge
+
 struct TrendBadge: View {
     let trend: String
 
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: trendIcon)
-            Text(trend)
-                .font(.caption.weight(.semibold))
+                .font(.caption2)
+            Text(trend.uppercased())
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(trendColor.opacity(0.15))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            Capsule()
+                .fill(trendColor.opacity(0.15))
+                .overlay(Capsule().strokeBorder(trendColor.opacity(0.3), lineWidth: 0.5))
+        )
         .foregroundStyle(trendColor)
-        .clipShape(Capsule())
     }
 
     private var trendIcon: String {

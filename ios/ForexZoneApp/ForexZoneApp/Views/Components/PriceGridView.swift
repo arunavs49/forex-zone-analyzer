@@ -38,27 +38,12 @@ struct PriceGridView: View {
                 path.move(to: CGPoint(x: 0, y: y))
                 path.addLine(to: CGPoint(x: chartWidth, y: y))
             }
-            .stroke(Color.gray.opacity(0.15), lineWidth: 0.5)
-
-            Text(formatPrice(price))
-                .font(.system(size: 8, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .position(x: chartWidth - 28, y: y)
+            .stroke(Color.white.opacity(0.06), lineWidth: 0.5)
         }
     }
 
     private func yPosition(price: Double) -> CGFloat {
         let ratio = (price - priceMin) / (priceMax - priceMin)
         return chartHeight * (1.0 - ratio)
-    }
-
-    private func formatPrice(_ price: Double) -> String {
-        if price < 10 {
-            return String(format: "%.4f", price)
-        } else if price < 1000 {
-            return String(format: "%.2f", price)
-        } else {
-            return String(format: "%.1f", price)
-        }
     }
 }

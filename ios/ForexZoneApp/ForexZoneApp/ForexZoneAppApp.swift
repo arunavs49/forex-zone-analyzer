@@ -8,6 +8,8 @@ struct ForexZoneAppApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(settings)
+                .preferredColorScheme(.dark)
+                .tint(Color("AccentTeal"))
         }
     }
 }
