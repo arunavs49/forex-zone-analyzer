@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var authService: AuthService
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -18,21 +19,67 @@ struct SettingsView: View {
                             .keyboardType(.URL)
                             .font(.system(.body, design: .monospaced))
                     }
+                }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Bearer Token (Entra ID)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        SecureField("Paste token here", text: $settings.bearerToken)
-                            .font(.system(.body, design: .monospaced))
+                Section("Authentication") {
+                    if authService.isSignedIn {
+                        HStack {
+                            Image(systemName: "person.crop.circle.fill")
+                                .foregroundStyle(.green)
+                            VStack(alignment: .leading) {
+                                Text("Signed in")
+                                    .font(.callout.bold())
+                                if let name = authService.userDisplayName {
+                                    Text(name)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Button("Sign Out", role: .destructive) {
+                                authService.signOut()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    } else {
+                        HStack {
+                            Image(systemName: "person.crop.circle.badge.xmark")
+                                .foregroundStyle(.red)
+                            Text("Not signed in")
+                                .font(.callout)
+                            Spacer()
+                            Button("Sign In") {
+                                Task { await authService.signIn() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+
+                        if let error = authService.errorMessage {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
+
+                    // Fallback manual token for advanced users
+                    DisclosureGroup("Manual Token (Advanced)") {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Override with a manually obtained Entra ID token")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            SecureField("Paste token here", text: $settings.bearerToken)
+                                .font(.system(.body, design: .monospaced))
+                        }
                     }
                 }
 
                 Section {
                     HStack {
-                        Image(systemName: settings.isConfigured ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundStyle(settings.isConfigured ? .green : .red)
-                        Text(settings.isConfigured ? "Server configured" : "Enter a valid http:// or https:// URL")
+                        Image(systemName: (settings.isConfigured && (authService.isSignedIn || !settings.bearerToken.isEmpty))
+                              ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle((settings.isConfigured && (authService.isSignedIn || !settings.bearerToken.isEmpty))
+                                            ? .green : .red)
+                        Text(statusMessage)
                             .font(.callout)
                     }
                 }
@@ -65,7 +112,7 @@ struct SettingsView: View {
                 }
 
                 Section("Help") {
-                    Text("This app connects to your Forex Zone Analyzer MCP server deployed on Azure Container Apps. Configure the URL and Entra ID bearer token to fetch candlestick data and visualize supply/demand zones.")
+                    Text("This app connects to your Forex Zone Analyzer MCP server deployed on Azure Container Apps. Sign in with your Microsoft account to authenticate automatically.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -79,9 +126,17 @@ struct SettingsView: View {
             }
         }
     }
+
+    private var statusMessage: String {
+        if !settings.isConfigured { return "Enter a valid http:// or https:// URL" }
+        if authService.isSignedIn { return "Connected with Microsoft account" }
+        if !settings.bearerToken.isEmpty { return "Using manual token" }
+        return "Sign in to authenticate"
+    }
 }
 
 #Preview {
     SettingsView()
         .environmentObject(AppSettings())
+        .environmentObject(AuthService())
 }

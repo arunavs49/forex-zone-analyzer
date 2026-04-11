@@ -55,12 +55,16 @@ class ChartViewModel: ObservableObject {
         visibleZones.filter { $0.type == .Demand }
     }
 
-    func loadData(settings: AppSettings) async {
+    func loadData(settings: AppSettings, authService: AuthService? = nil) async {
         isLoading = true
         error = nil
 
         do {
-            try await service.configure(url: settings.mcpServerURL, token: settings.bearerToken)
+            if let auth = authService, auth.isSignedIn {
+                try await service.configure(url: settings.mcpServerURL, tokenProvider: { await auth.getAccessToken() })
+            } else {
+                try await service.configure(url: settings.mcpServerURL, token: settings.bearerToken)
+            }
 
             async let candlesFetch = service.getCandles(
                 instrument: instrument.rawValue,

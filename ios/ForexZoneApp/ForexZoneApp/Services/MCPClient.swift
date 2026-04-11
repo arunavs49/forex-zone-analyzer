@@ -5,6 +5,7 @@ actor MCPClient {
     private let session: URLSession
     private var baseURL: URL
     private var bearerToken: String
+    private var tokenProvider: (@Sendable () async -> String?)?
     private var requestId: Int = 0
     private var sessionId: String?
 
@@ -20,7 +21,24 @@ actor MCPClient {
     func updateConfig(baseURL: URL, bearerToken: String) {
         self.baseURL = baseURL
         self.bearerToken = bearerToken
+        self.tokenProvider = nil
         self.sessionId = nil
+    }
+
+    /// Configure with an async token provider (e.g. MSAL) for automatic refresh
+    func updateConfig(baseURL: URL, tokenProvider: @escaping @Sendable () async -> String?) {
+        self.baseURL = baseURL
+        self.bearerToken = ""
+        self.tokenProvider = tokenProvider
+        self.sessionId = nil
+    }
+
+    /// Resolve the current bearer token, preferring the dynamic provider
+    private func resolveToken() async -> String {
+        if let provider = tokenProvider, let token = await provider() {
+            return token
+        }
+        return bearerToken
     }
 
     /// Initialize the MCP session
@@ -73,8 +91,9 @@ actor MCPClient {
         request.httpBody = bodyData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json, text/event-stream", forHTTPHeaderField: "Accept")
-        if !bearerToken.isEmpty {
-            request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        let token = await resolveToken()
+        if !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let sid = sessionId {
             request.setValue(sid, forHTTPHeaderField: "Mcp-Session-Id")
@@ -128,8 +147,9 @@ actor MCPClient {
         request.httpBody = bodyData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json, text/event-stream", forHTTPHeaderField: "Accept")
-        if !bearerToken.isEmpty {
-            request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        let token = await resolveToken()
+        if !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let sid = sessionId {
             request.setValue(sid, forHTTPHeaderField: "Mcp-Session-Id")

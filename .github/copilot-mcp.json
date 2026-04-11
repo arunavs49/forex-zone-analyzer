@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "forex-zone-analyzer": {
+      "type": "http",
+      "url": "https://ca-forex-mcp.gentlegrass-9ef0e688.eastus2.azurecontainerapps.io/mcp",
+      "headers": {
+        "Authorization": "Bearer ${command:./scripts/get-mcp-token.sh}"
+      }
+    }
+  }
+}

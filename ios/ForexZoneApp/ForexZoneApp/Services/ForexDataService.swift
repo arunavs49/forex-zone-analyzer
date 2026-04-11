@@ -19,6 +19,22 @@ class ForexDataService: ObservableObject {
         isInitialized = false
     }
 
+    /// Configure with an async token provider (e.g. MSAL) for automatic refresh
+    func configure(url: String, tokenProvider: @escaping @Sendable () async -> String?) async throws {
+        guard let baseURL = URL(string: url) else {
+            throw MCPError.invalidURL
+        }
+
+        if let existing = client {
+            await existing.updateConfig(baseURL: baseURL, tokenProvider: tokenProvider)
+        } else {
+            client = MCPClient(baseURL: baseURL, bearerToken: "")
+            await client?.updateConfig(baseURL: baseURL, tokenProvider: tokenProvider)
+        }
+
+        isInitialized = false
+    }
+
     private func ensureInitialized() async throws {
         guard let client = client else {
             throw MCPError.invalidURL

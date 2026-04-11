@@ -17,6 +17,7 @@ class ZonePollingService: ObservableObject {
     private var isFirstPoll = true
 
     private let settings: AppSettings
+    var authService: AuthService?
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -104,7 +105,11 @@ class ZonePollingService: ObservableObject {
     private func performPoll() async {
         let dataService = ForexDataService()
         do {
-            try await dataService.configure(url: settings.mcpServerURL, token: settings.bearerToken)
+            if let auth = authService, auth.isSignedIn {
+                try await dataService.configure(url: settings.mcpServerURL, tokenProvider: { await auth.getAccessToken() })
+            } else {
+                try await dataService.configure(url: settings.mcpServerURL, token: settings.bearerToken)
+            }
         } catch {
             print("[ZonePolling] Failed to configure: \(error.localizedDescription)")
             return

@@ -1,4 +1,8 @@
 name: ZoneRadar
+packages:
+  MSAL:
+    url: https://github.com/AzureAD/microsoft-authentication-library-for-objc
+    from: "1.6.1"
 targets:
   ZoneRadar:
     type: application
@@ -6,6 +10,8 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - ForexZoneApp
+    dependencies:
+      - package: MSAL
     info:
       path: ForexZoneApp/Info.plist
       properties:
@@ -27,3 +33,8 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: "5.0"
+    entitlements:
+      path: ForexZoneApp/ZoneRadar.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)com.microsoft.adalcache

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChartContainerView: View {
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel: ChartViewModel
     @State private var showZoneList = false
 
@@ -21,7 +22,7 @@ struct ChartContainerView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
             .onChange(of: viewModel.granularity) { _, _ in
-                Task { await viewModel.loadData(settings: settings) }
+                Task { await viewModel.loadData(settings: settings, authService: authService) }
             }
 
             // Info bar: trend + zone count
@@ -69,7 +70,7 @@ struct ChartContainerView: View {
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                         Button("Retry") {
-                            Task { await viewModel.loadData(settings: settings) }
+                            Task { await viewModel.loadData(settings: settings, authService: authService) }
                         }
                         .buttonStyle(.bordered)
                     }
@@ -111,7 +112,7 @@ struct ChartContainerView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    Task { await viewModel.loadData(settings: settings) }
+                    Task { await viewModel.loadData(settings: settings, authService: authService) }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -128,7 +129,7 @@ struct ChartContainerView: View {
             )
         }
         .task {
-            await viewModel.loadData(settings: settings)
+            await viewModel.loadData(settings: settings, authService: authService)
         }
     }
 }
