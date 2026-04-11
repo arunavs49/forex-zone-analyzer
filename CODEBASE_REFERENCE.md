@@ -42,8 +42,8 @@
 │  ─────────────────       │  ───────────────                  │
 │  • ZoneManager           │  • OandaApiConnection             │
 │  • ZoneFinder            │  • Account / IAccount             │
-│  • TrendManager          │  • Instrument / IInstrument       │
-│  • CandlestickShape      │  • Trades / ITrades               │
+│  • TrendManager (swing)  │  • Instrument / IInstrument       │
+│  • TrendConfiguration    │  • Trades / ITrades               │
 ├──────────────────────────┤  • DateTimeRange / Extensions     │
 │  ZoneAnalyzer            ├───────────────────────────────────┤
 │  .DataProvider           │  GeriRemenyi.Oanda.V20.Client     │
@@ -197,7 +197,7 @@ public class CachedInstrument : IInstrument
 
 ### 2.4 ZoneAnalyzer.PatternAnalysis ⭐ (Core Trading Logic)
 
-**The heart of the system.** Dependencies: Oanda Client + **MathNet.Numerics** (for linear regression).
+**The heart of the system.** Dependencies: Oanda Client.
 
 #### 2.4.1 Candlestick Classification
 
@@ -287,15 +287,30 @@ public class ZoneConfiguration
 
 #### 2.4.4 Trend Detection (TrendManager)
 
-Uses **linear regression** (1st-degree polynomial fit) on up to the last 60 closing prices:
+Uses **swing-based detection** (N-bar pivot) to identify trend direction from the last 60 candles (configurable via `TrendConfiguration`):
+
+1. **Find swing highs** — a candle is a swing high if its High is ≥ all neighboring Highs within `SwingLookback` bars on each side
+2. **Find swing lows** — same logic on Lows
+3. **Compare last two swing points** of each type:
+   - Higher High + Higher Low → **Up**
+   - Lower High + Lower Low → **Down**
+   - Otherwise → **Sideways**
 
 ```csharp
-// MathNet.Numerics.Fit.Polynomial(xData, yData, degree: 1)
-// Returns coefficients [intercept, slope]
-// slope > 0  → Trend.Up
-// slope < 0  → Trend.Down
-// slope == 0 → Trend.Sideways
+var trend = TrendManager.Create(candles, config);
+trend.GetTrendDirection(); // => TrendDirection.Up / Down / Sideways
+trend.GetTrend();          // => "Up" / "Down" / "Sideways" (string)
+trend.GetSwingHighs();     // => List<SwingPoint> for diagnostics
+trend.GetSwingLows();      // => List<SwingPoint> for diagnostics
 ```
+
+**TrendConfiguration** (configurable via `appsettings.json` / env vars):
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `SwingLookback` | 3 | N-bar pivot lookback (bars on each side) |
+| `TrendCandleCount` | 60 | Number of recent candles to analyze |
+| `MinSwingPoints` | 2 | Minimum swing highs/lows needed to determine trend |
 
 #### 2.4.5 ZoneManager (Orchestrator)
 
@@ -317,7 +332,8 @@ var supplyZones = zones.GetSupplyZones();
 var demandZones = zones.GetDemandZones();
 
 var trend = TrendManager.Create(candlesticks);
-// trend.Direction => Up / Down / Sideways
+// trend.GetTrendDirection() => TrendDirection.Up / Down / Sideways
+// trend.GetTrend()          => "Up" / "Down" / "Sideways"
 ```
 
 ---
@@ -350,9 +366,9 @@ Main Menu
 | Project | Status |
 |---------|--------|
 | `Client.Test` | Auto-generated xUnit stubs — 1250 tests (mostly `// TODO` bodies that pass) |
-| `PatternAnalysis.Test` | **22 real tests:** 4 ZoneManager, 7 ZoneFinder freshness/worked, 3 base overlap, 8 sub-zone detection |
+| `PatternAnalysis.Test` | **39 real tests:** 4 ZoneManager, 7 ZoneFinder freshness/worked, 3 base overlap, 8 sub-zone, 17 TrendManager swing detection |
 | `McpServer.Test` | **20 tests:** MCP tool integration tests |
-| `Worker.Test` | **28 tests:** InMemoryZoneStore, ConsoleNotificationService, MonitorSettings, zone change detection |
+| `Worker.Test` | **63 tests:** InMemoryZoneStore, ConsoleNotificationService, MonitorSettings, zone change detection, candle-aligned scheduling |
 
 #### Test Coverage
 
@@ -362,10 +378,12 @@ Main Menu
 | `ZoneFinderFreshnessTests` | 7 | Freshness (Untested/Tested/Broken) and Worked (null/true/false) for supply and demand zones |
 | `ZoneFinderBaseOverlapTests` | 3 | Base absorption of overlapping excited candles at 75% threshold |
 | `ZoneFinderSubZoneTests` | 8 | Sub-zone detection: same-type overlap ≥10%, cross-type no match, broken zones excluded |
+| `TrendManagerTests` | 17 | Swing-based trend: uptrend/downtrend/sideways detection, swing point identification, config variations, edge cases |
 | `InMemoryZoneStoreTests` | 7 | Upsert/get round-trip, overwrite, instrument/granularity isolation, copy semantics |
 | `ConsoleNotificationServiceTests` | 7 | FormatAlert output: instrument, type, trend, range, freshness, sub-zone |
 | `MonitorSettingsTests` | 6 | Default config values (instruments, granularities, poll interval, cache size) |
 | `ZoneChangeDetectionTests` | 10 | Zone key generation, change detection diffing (new/existing/all-new/none-new) |
+| `CandleAlignedScheduleTests` | 15+ | Candle-aligned scheduling (M15/H1/H4), granularity mapping, invariants |
 
 ---
 
@@ -378,7 +396,7 @@ Main Menu
 | **Oanda Client** | Full OANDA V20 API access | Generated code, stable. Consider upgrading to .NET 6/8 |
 | **Oanda SDK** | Connection management, candle pagination, trade execution | Clean interfaces, easy to mock |
 | **ZoneFinder** | Supply/demand zone detection state machine | Core algorithm, well-structured |
-| **TrendManager** | Trend direction via linear regression | Simple, effective |
+| **TrendManager** | Swing-based trend direction (HH/HL/LH/LL) | Configurable, robust, returns enum + diagnostics |
 | **CandlestickShape** | Candle classification (boring/exciting) | Foundation for zone detection |
 
 ### 3.2 Needs Enhancement for New Project
@@ -430,7 +448,7 @@ var trend = TrendManager.Create(candles);
          │
 6. Filter zones by ZoneConfiguration (min base length, leg ratios)
          │
-7. Determine trend via TrendManager (linear regression on closes)
+7. Determine trend via TrendManager (swing-based: Higher Highs/Lows detection)
          │
 8. [NEW] Match zones to current price + trend direction
          │
@@ -472,19 +490,21 @@ var trend = TrendManager.Create(candles);
     │   └── Common/                             # Extensions, Exceptions, Types
     ├── GeriRemenyi.Oanda.V20.Sdk.Playground/   # 8 files (console demo)
     ├── ZoneAnalyzer.DataProvider/              # 2 files (CachedInstrument wrapper)
-    ├── ZoneAnalyzer.PatternAnalysis/           # 7 files (core analysis)
+    ├── ZoneAnalyzer.PatternAnalysis/           # 8 files (core analysis)
     │   ├── ZoneManager.cs                      # Orchestrator
     │   ├── ZoneFinder.cs                       # State machine + EvaluateSubZones()
-    │   ├── TrendManager.cs                     # Linear regression trend
+    │   ├── TrendManager.cs                     # Swing-based trend detection
+    │   ├── TrendConfiguration.cs               # Trend config (SwingLookback, TrendCandleCount, MinSwingPoints)
     │   ├── CandlestickShape.cs                 # Candle classification enum
     │   ├── CandlestickDataExtensions.cs        # Shape classification logic
     │   ├── ZoneConfiguration.cs                # Zone filter config (MaxBaseLength=6)
     │   └── SampleCandleSticks.json             # Test fixture data
-    ├── ZoneAnalyzer.PatternAnalysis.Test/      # 4 test classes (22 tests)
+    ├── ZoneAnalyzer.PatternAnalysis.Test/      # 5 test classes (39 tests)
     │   ├── ZoneManagerTests.cs
     │   ├── ZoneFinderFreshnessTests.cs
     │   ├── ZoneFinderBaseOverlapTests.cs
-    │   └── ZoneFinderSubZoneTests.cs
+    │   ├── ZoneFinderSubZoneTests.cs
+    │   └── TrendManagerTests.cs
     ├── ForexZoneAnalyzer.McpServer/            # MCP server (11 tools)
     │   ├── Program.cs                          # Host builder, Entra ID auth, MapMcp("/mcp")
     │   └── Tools/
@@ -504,11 +524,12 @@ var trend = TrendManager.Create(candles);
     │       ├── INotificationService.cs         # Notification interface
     │       ├── ConsoleNotificationService.cs   # Console output (dev)
     │       └── EmailNotificationService.cs     # ACS Email (production)
-    └── ForexZoneAnalyzer.Worker.Test/          # 28 tests
+    └── ForexZoneAnalyzer.Worker.Test/          # 63 tests
         ├── InMemoryZoneStoreTests.cs
         ├── ConsoleNotificationServiceTests.cs
         ├── MonitorSettingsTests.cs
-        └── ZoneChangeDetectionTests.cs
+        ├── ZoneChangeDetectionTests.cs
+        └── CandleAlignedScheduleTests.cs
 ```
 
 ---
@@ -521,7 +542,6 @@ var trend = TrendManager.Create(candles);
 | Newtonsoft.Json | 13.0.3 | Client, Worker | JSON serialization |
 | JsonSubTypes | 2.0.0 | Client | Polymorphic deserialization |
 | System.ComponentModel.Annotations | 5.0.0 | Client | Model validation |
-| MathNet.Numerics | 5.0.0 | PatternAnalysis | Polynomial fitting for trend detection |
 | ModelContextProtocol | 0.1.0-preview.13 | McpServer | MCP protocol server implementation |
 | Microsoft.Identity.Web | 3.8.5 | McpServer | Entra ID JWT bearer authentication |
 | Azure.Identity | 1.14.2 | McpServer, Worker | DefaultAzureCredential for Azure auth |
@@ -549,16 +569,16 @@ var trend = TrendManager.Create(candles);
 9. ~~**No notifications**~~ — ✅ ACS Email notifications in Worker (HTML + plain text), console fallback in dev
 10. ~~**No configuration**~~ — ✅ Worker uses `appsettings.json` + environment variables; MCP server uses Key Vault
 11. ~~**Secret management**~~ — ✅ Azure Key Vault for OANDA token; Container App secrets for ACS connection string
+12. ~~**TrendManager fragility**~~ — ✅ Rewritten with swing-based detection; returns `TrendDirection` enum, handles edge cases (< 2 candles → Sideways), configurable via `TrendConfiguration`
 
 ### Remaining
 
 1. **No zone price validation** — TODO in source: check if zone is on correct side of current price
 2. **Empty tests** — Client.Test has 1,250 stub tests with `// TODO` bodies
 3. **No error handling in Playground** — minimal try/catch around API calls
-4. **TrendManager fragility** — crashes with < 2 candles, returns string instead of enum (planned for redo)
-5. **CachedInstrument no-op** — `CachedInstrument` in DataProvider still doesn't cache; Worker's `CandleCacheService` is separate
-6. **Playground secret handling** — still uses `Config.txt` (gitignored) instead of a proper secret store
-7. **Bicep warnings (non-blocking)** — `no-hardcoded-env-urls` for `login.microsoftonline.com`, `BCP318` for conditional null check
+4. **CachedInstrument no-op** — `CachedInstrument` in DataProvider still doesn't cache; Worker's `CandleCacheService` is separate
+5. **Playground secret handling** — still uses `Config.txt` (gitignored) instead of a proper secret store
+6. **Bicep warnings (non-blocking)** — `no-hardcoded-env-urls` for `login.microsoftonline.com`, `BCP318` for conditional null check
 
 ---
 
@@ -568,7 +588,7 @@ var trend = TrendManager.Create(candles);
 
 ```
 forex-zone-analyzer
-├── PatternAnalysis/         # Zone detection, trend analysis, candle classification
+├── PatternAnalysis/         # Zone detection, swing-based trend, candle classification
 ├── Oanda Client + SDK/      # Full OANDA V20 API: candles, accounts, trades
 ├── MCP Server/              # 11 tools exposed via MCP protocol (Entra ID auth)
 ├── Worker/                  # Background monitoring: cache → detect → notify
@@ -577,7 +597,7 @@ forex-zone-analyzer
 │   └── Notifications/       # INotificationService (ACS Email / console)
 ├── Infra/                   # Bicep: ACR, Key Vault, Storage, ACS, Container Apps
 ├── CI/CD/                   # GitHub Actions with OIDC + Bicep deploy
-└── Tests/                   # 1,320 tests across 4 test projects
+└── Tests/                   # 1,372 tests across 4 test projects
 ```
 
 ### Potential Enhancements
@@ -587,7 +607,6 @@ forex-zone-analyzer
 | High | **Backtesting engine** | Historical simulation using cached candle data to validate zone strategies |
 | High | **Trade setup automation** | Zone + trend + price proximity → automated trade parameter generation |
 | Medium | **Zone price validation** | Check if zone is on correct side of current price (TODO in source) |
-| Medium | **TrendManager rewrite** | Handle < 2 candles gracefully; return enum instead of string |
 | Medium | **More notification channels** | SMS, Telegram, push notifications via ACS or third-party |
 | Low | **Unify caching** | Merge `CachedInstrument` no-op with Worker's `CandleCacheService` |
 | Low | **Dashboard API** | REST/gRPC API for real-time zone visualization |

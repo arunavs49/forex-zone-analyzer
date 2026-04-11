@@ -69,12 +69,12 @@ dotnet run --project src/ForexZoneAnalyzer.Worker
 |---------|---------|
 | `GeriRemenyi.Oanda.V20.Client` | Auto-generated OANDA V20 API client (~202 files) |
 | `GeriRemenyi.Oanda.V20.Sdk` | High-level SDK wrapper (connection, candle pagination, trades) |
-| `ZoneAnalyzer.PatternAnalysis` | Core zone detection: ZoneFinder state machine, TrendManager, candle classification |
+| `ZoneAnalyzer.PatternAnalysis` | Core zone detection: ZoneFinder state machine, swing-based TrendManager, candle classification |
 | `ZoneAnalyzer.DataProvider` | Instrument wrapper (pass-through) |
 | `ForexZoneAnalyzer.McpServer` | MCP server with 11 tools for interactive zone analysis |
 | `ForexZoneAnalyzer.Worker` | Background worker monitoring currency pairs for new zones with email alerts |
 | `GeriRemenyi.Oanda.V20.Sdk.Playground` | Interactive console demo |
-| `*.Test` | xUnit test projects (1320 tests total) |
+| `*.Test` | xUnit test projects (1372 tests total) |
 
 ## Azure Infrastructure
 
@@ -108,7 +108,7 @@ Features:
 - **Zone persistence** — Azure Table Storage (prod) / in-memory (dev)
 - **Change detection** — only alerts on genuinely new zones
 - **Email notifications** — Azure Communication Services (prod) / console (dev)
-- **Trend context** — includes 1-hour trend direction in alerts
+- **Trend context** — swing-based trend detection (Higher Highs/Higher Lows) included in alerts
 - **Configurable** — instruments, timeframes, poll interval, zone configuration all via appsettings
 
 ## Documentation
