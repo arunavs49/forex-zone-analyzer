@@ -1,15 +1,8 @@
 {
   // MCP server configurations for VS Code / GitHub Copilot
   // See: https://code.visualstudio.com/docs/copilot/chat/mcp-servers
-
-  "inputs": [
-    {
-      "id": "mcp-token",
-      "type": "promptString",
-      "description": "Paste Entra ID token. Run in terminal: az account get-access-token --resource api://c1bba0b6-1125-40c1-b496-0ef773bfd7b4 --query accessToken --output tsv",
-      "password": true
-    }
-  ],
+  //
+  // Prerequisites: Azure CLI logged in (az login)
 
   "servers": {
     // ── Local development ──────────────────────────────────────────────
@@ -23,14 +16,12 @@
     //}
 
     // ── Remote Azure deployment ────────────────────────────────────────
-    // When starting, VS Code will prompt for a token.
-    // Run this in a terminal first and paste the output:
-    //   az account get-access-token --resource api://c1bba0b6-1125-40c1-b496-0ef773bfd7b4 --query accessToken --output tsv
+    // Token is fetched automatically via Azure CLI
     "forex-zone-analyzer-remote": {
        "type": "http",
        "url": "https://ca-forex-mcp.gentlegrass-9ef0e688.eastus2.azurecontainerapps.io/mcp",
        "headers": {
-         "Authorization": "Bearer ${input:mcp-token}"
+         "Authorization": "Bearer ${command:./scripts/get-mcp-token.sh}"
        }
     }
   }
