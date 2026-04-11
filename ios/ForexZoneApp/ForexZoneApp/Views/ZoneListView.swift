@@ -1,0 +1,148 @@
+import SwiftUI
+
+struct ZoneListView: View {
+    let supplyZones: [Zone]
+    let demandZones: [Zone]
+    let instrument: Instrument
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Supply Zones (\(supplyZones.count))") {
+                    if supplyZones.isEmpty {
+                        Text("No supply zones detected")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(supplyZones) { zone in
+                        ZoneRow(zone: zone, color: .red)
+                    }
+                }
+
+                Section("Demand Zones (\(demandZones.count))") {
+                    if demandZones.isEmpty {
+                        Text("No demand zones detected")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(demandZones) { zone in
+                        ZoneRow(zone: zone, color: .green)
+                    }
+                }
+            }
+            .navigationTitle("\(instrument.displayName) Zones")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+struct ZoneRow: View {
+    let zone: Zone
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                // Zone type badge
+                Text(zone.type.rawValue)
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(color.opacity(0.15))
+                    .foregroundStyle(color)
+                    .clipShape(Capsule())
+
+                // Freshness badge
+                FreshnessBadge(freshness: zone.freshness)
+
+                if zone.subZone {
+                    Text("SUB")
+                        .font(.system(size: 9, weight: .medium))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(.purple.opacity(0.15))
+                        .foregroundStyle(.purple)
+                        .clipShape(Capsule())
+                }
+
+                Spacer()
+
+                // Worked indicator
+                if let worked = zone.worked {
+                    Image(systemName: worked ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundStyle(worked ? .green : .red)
+                        .font(.caption)
+                }
+            }
+
+            // Price range
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Range")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text("\(formatPrice(zone.baseRangeLow)) — \(formatPrice(zone.baseRangeHigh))")
+                        .font(.system(.caption, design: .monospaced))
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing) {
+                    Text("Width")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(formatPips(zone.baseRangeHigh - zone.baseRangeLow))
+                        .font(.system(.caption, design: .monospaced))
+                }
+
+                VStack(alignment: .trailing) {
+                    Text("Base")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text("\(zone.baseCandleCount) candles")
+                        .font(.caption)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func formatPrice(_ price: Double) -> String {
+        if price < 10 {
+            return String(format: "%.5f", price)
+        } else {
+            return String(format: "%.3f", price)
+        }
+    }
+
+    private func formatPips(_ value: Double) -> String {
+        let pips = value * 10000
+        return String(format: "%.1f pips", pips)
+    }
+}
+
+struct FreshnessBadge: View {
+    let freshness: ZoneFreshness
+
+    var body: some View {
+        Text(freshness.rawValue)
+            .font(.system(size: 9, weight: .medium))
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .background(badgeColor.opacity(0.15))
+            .foregroundStyle(badgeColor)
+            .clipShape(Capsule())
+    }
+
+    private var badgeColor: Color {
+        switch freshness {
+        case .Untested: return .blue
+        case .Tested: return .orange
+        case .Broken: return .gray
+        }
+    }
+}
