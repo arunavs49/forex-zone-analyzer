@@ -44,22 +44,23 @@ struct ChartContainerView: View {
                     .progressViewStyle(.circular)
                 Spacer()
             } else if let error = viewModel.error {
-                Spacer()
-                VStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundStyle(.red)
-                    Text(error)
-                        .font(.callout)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.secondary)
-                    Button("Retry") {
-                        Task { await viewModel.loadData(settings: settings) }
+                ScrollView {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundStyle(.red)
+                        Text(error)
+                            .font(.system(.caption, design: .monospaced))
+                            .multilineTextAlignment(.leading)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                        Button("Retry") {
+                            Task { await viewModel.loadData(settings: settings) }
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
+                    .padding()
                 }
-                .padding()
-                Spacer()
             } else if viewModel.candles.isEmpty {
                 Spacer()
                 Text("No data available")

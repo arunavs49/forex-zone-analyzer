@@ -82,38 +82,41 @@ actor MCPClient {
 
         let (data, response) = try await session.data(for: request)
 
-        if let httpResponse = response as? HTTPURLResponse {
-            // Capture session ID from response headers
-            if let sid = httpResponse.value(forHTTPHeaderField: "Mcp-Session-Id") {
-                sessionId = sid
-            }
-
-            guard (200...299).contains(httpResponse.statusCode) else {
-                let body = String(data: data, encoding: .utf8) ?? "No body"
-                throw MCPError.httpError(statusCode: httpResponse.statusCode, body: body)
-            }
-
-            // Handle SSE responses — extract JSON-RPC message from event stream
-            let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? ""
-            if contentType.contains("text/event-stream") {
-                let sseData = extractJSONFromSSE(data)
-                let rpcResponse = try JSONDecoder().decode(JSONRPCResponse<R>.self, from: sseData)
-                if let error = rpcResponse.error {
-                    throw MCPError.rpcError(code: error.code, message: error.message)
-                }
-                guard let result = rpcResponse.result else { throw MCPError.noResult }
-                return result
-            }
-        }
-
-        let rpcResponse = try JSONDecoder().decode(JSONRPCResponse<R>.self, from: data)
-        if let error = rpcResponse.error {
-            throw MCPError.rpcError(code: error.code, message: error.message)
-        }
-        guard let result = rpcResponse.result else {
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw MCPError.noResult
         }
-        return result
+
+        // Capture session ID
+        if let sid = httpResponse.value(forHTTPHeaderField: "Mcp-Session-Id") {
+            sessionId = sid
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? "No body"
+            throw MCPError.httpError(statusCode: httpResponse.statusCode, body: body)
+        }
+
+        // Determine the actual response data to decode
+        let jsonData: Data
+        let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? ""
+        if contentType.contains("text/event-stream") {
+            jsonData = extractJSONFromSSE(data)
+        } else {
+            jsonData = data
+        }
+
+        do {
+            let rpcResponse = try JSONDecoder().decode(JSONRPCResponse<R>.self, from: jsonData)
+            if let error = rpcResponse.error {
+                throw MCPError.rpcError(code: error.code, message: error.message)
+            }
+            guard let result = rpcResponse.result else { throw MCPError.noResult }
+            return result
+        } catch let decodingError as DecodingError {
+            let raw = String(data: jsonData, encoding: .utf8) ?? "(binary)"
+            let preview = String(raw.prefix(500))
+            throw MCPError.decodingError(detail: "\(decodingError.localizedDescription)\n\nRaw response preview:\n\(preview)")
+        }
     }
 
     private func sendNotification<P: Encodable>(method: String, params: P) async throws {
@@ -139,14 +142,37 @@ actor MCPClient {
         }
     }
 
-    /// Parse JSON-RPC message from SSE event stream (extracts data from "data:" lines)
+    /// Parse JSON-RPC message from SSE event stream.
+    /// SSE format: lines of "event: message\ndata: {json}\n\n"
+    /// We want the LAST complete JSON-RPC response (the final message).
     private func extractJSONFromSSE(_ data: Data) -> Data {
         guard let text = String(data: data, encoding: .utf8) else { return data }
-        let jsonLines = text.components(separatedBy: "\n")
-            .filter { $0.hasPrefix("data:") }
-            .map { String($0.dropFirst(5)).trimmingCharacters(in: .whitespaces) }
-            .joined()
-        return Data(jsonLines.utf8)
+
+        // Split into SSE events (separated by blank lines)
+        let events = text.components(separatedBy: "\n\n")
+
+        // Find data lines, take the last one (the final response)
+        var lastDataPayload: String?
+        for event in events {
+            let lines = event.components(separatedBy: "\n")
+            let dataLines = lines
+                .filter { $0.hasPrefix("data:") || $0.hasPrefix("data: ") }
+                .map { line -> String in
+                    var l = line
+                    l.removeFirst(5) // remove "data:"
+                    if l.hasPrefix(" ") { l.removeFirst() } // remove optional space
+                    return l
+                }
+            let payload = dataLines.joined()
+            if !payload.isEmpty {
+                lastDataPayload = payload
+            }
+        }
+
+        if let payload = lastDataPayload {
+            return Data(payload.utf8)
+        }
+        return data
     }
 }
 
@@ -157,6 +183,7 @@ enum MCPError: LocalizedError {
     case rpcError(code: Int, message: String)
     case noResult
     case invalidURL
+    case decodingError(detail: String)
 
     var errorDescription: String? {
         switch self {
@@ -164,6 +191,7 @@ enum MCPError: LocalizedError {
         case .rpcError(_, let msg): return "MCP Error: \(msg)"
         case .noResult: return "No result returned from MCP server"
         case .invalidURL: return "Invalid MCP server URL"
+        case .decodingError(let detail): return "Decoding error: \(detail)"
         }
     }
 }

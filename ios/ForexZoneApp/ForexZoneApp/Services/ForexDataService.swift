@@ -44,7 +44,12 @@ class ForexDataService: ObservableObject {
         )
 
         let data = Data(json.utf8)
-        return try JSONDecoder().decode([Candle].self, from: data)
+        do {
+            return try JSONDecoder().decode([Candle].self, from: data)
+        } catch {
+            let preview = String(json.prefix(300))
+            throw MCPError.decodingError(detail: "Candle decode failed: \(error.localizedDescription)\n\nTool response preview:\n\(preview)")
+        }
     }
 
     /// Fetch supply and demand zones
@@ -62,7 +67,12 @@ class ForexDataService: ObservableObject {
         )
 
         let data = Data(json.utf8)
-        return try JSONDecoder().decode(ZoneAnalysisResponse.self, from: data)
+        do {
+            return try JSONDecoder().decode(ZoneAnalysisResponse.self, from: data)
+        } catch {
+            let preview = String(json.prefix(300))
+            throw MCPError.decodingError(detail: "Zone decode failed: \(error.localizedDescription)\n\nTool response preview:\n\(preview)")
+        }
     }
 
     /// Fetch trend direction
