@@ -1,23 +1,18 @@
 {
-  // MCP server configurations for VS Code / GitHub Copilot
-  // See: https://code.visualstudio.com/docs/copilot/chat/mcp-servers
-
-  "inputs": [
-    {
-      "id": "mcp-token",
-      "type": "promptString",
-      "description": "Run: az account get-access-token --resource api://c1bba0b6-1125-40c1-b496-0ef773bfd7b4 -q accessToken -o tsv",
-      "password": true
-    }
-  ],
+  // MCP server configurations for VS Code and Copilot CLI
+  //
+  // Before connecting, set the token env var:
+  //   export FOREX_MCP_TOKEN=$(./scripts/get-mcp-token.sh)
+  //
+  // VS Code: restart window after setting env var, or launch from terminal
+  // Copilot CLI: set env var in same terminal before running `copilot`
 
   "servers": {
-    // ── Remote Azure deployment ────────────────────────────────────────
-    "forex-zone-analyzer-remote": {
+    "forex-zone-analyzer": {
        "type": "http",
        "url": "https://ca-forex-mcp.gentlegrass-9ef0e688.eastus2.azurecontainerapps.io/mcp",
        "headers": {
-         "Authorization": "Bearer ${input:mcp-token}"
+         "Authorization": "Bearer ${env:FOREX_MCP_TOKEN}"
        }
     }
   }
