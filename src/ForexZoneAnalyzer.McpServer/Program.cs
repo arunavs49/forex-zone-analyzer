@@ -1,3 +1,5 @@
+using Azure.Data.Tables;
+using Azure.Identity;
 using ForexZoneAnalyzer.McpServer.Services;
 using Microsoft.Identity.Web;
 
@@ -18,6 +20,33 @@ builder.Services.AddAuthorization();
 
 // OANDA connection service (singleton — caches the API connection)
 builder.Services.AddSingleton<IOandaConnectionService, OandaConnectionService>();
+
+// Azure Table Storage client for stored zones
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var connectionString = config["Storage:ConnectionString"];
+    var tableName = config["Storage:TableName"] ?? "zones";
+
+    var clientOptions = new TableClientOptions();
+    clientOptions.Retry.MaxRetries = 5;
+    clientOptions.Retry.Mode = Azure.Core.RetryMode.Exponential;
+    clientOptions.Retry.Delay = TimeSpan.FromSeconds(1);
+    clientOptions.Retry.MaxDelay = TimeSpan.FromSeconds(30);
+
+    TableClient client;
+    if (!string.IsNullOrEmpty(connectionString))
+    {
+        client = new TableClient(connectionString, tableName, clientOptions);
+    }
+    else
+    {
+        var accountName = config["Storage:AccountName"];
+        var endpoint = new Uri($"https://{accountName}.table.core.windows.net");
+        client = new TableClient(endpoint, tableName, new DefaultAzureCredential(), clientOptions);
+    }
+    return client;
+});
 
 // MCP server with HTTP transport + auto-discovered tools
 builder.Services

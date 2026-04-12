@@ -76,6 +76,39 @@ public class TableStorageZoneStore : IZoneStore
         _logger.LogDebug("Upserted {Count} zones to Table Storage for {Partition}", zones.Count, partitionKey);
     }
 
+    public async Task<string?> GetTrendAsync(string instrument, string granularity, CancellationToken cancellationToken)
+    {
+        var partitionKey = $"{instrument}_{granularity}";
+        var rowKey = "_trend_";
+
+        try
+        {
+            var response = await _tableClient.GetEntityIfExistsAsync<TableEntity>(partitionKey, rowKey, cancellationToken: cancellationToken);
+            if (response.HasValue)
+            {
+                return response.Value?.GetString("Trend");
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Table Storage trend query failed for {Partition}", partitionKey);
+        }
+
+        return null;
+    }
+
+    public async Task UpsertTrendAsync(string instrument, string granularity, string trend, CancellationToken cancellationToken)
+    {
+        var partitionKey = $"{instrument}_{granularity}";
+        var entity = new TableEntity(partitionKey, "_trend_")
+        {
+            { "Trend", trend },
+            { "UpdatedAt", DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc) }
+        };
+        await _tableClient.UpsertEntityAsync(entity, TableUpdateMode.Replace, cancellationToken);
+        _logger.LogDebug("Upserted trend '{Trend}' to Table Storage for {Partition}", trend, partitionKey);
+    }
+
     private static string GetRowKey(Zone zone)
     {
         // Stable identity: Type + StartTime + base range

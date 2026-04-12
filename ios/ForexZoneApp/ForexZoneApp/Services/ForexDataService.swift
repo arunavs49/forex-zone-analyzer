@@ -111,6 +111,36 @@ class ForexDataService: ObservableObject {
         }
     }
 
+    /// Fetch pre-computed zones and trend from storage
+    func getStoredZones(instrument: String, granularity: String) async throws -> ZoneAnalysisResponse {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "get_stored_zones",
+            arguments: [
+                "instrument": instrument,
+                "granularity": granularity
+            ]
+        )
+
+        let data = Data(json.utf8)
+        do {
+            return try JSONDecoder().decode(ZoneAnalysisResponse.self, from: data)
+        } catch let DecodingError.typeMismatch(type, context) {
+            let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+            let preview = String(json.prefix(500))
+            throw MCPError.decodingError(detail: "StoredZone type mismatch: expected \(type) at \(path)\n\(context.debugDescription)\n\nResponse preview:\n\(preview)")
+        } catch let DecodingError.keyNotFound(key, context) {
+            let path = context.codingPath.map(\.stringValue).joined(separator: ".")
+            let preview = String(json.prefix(500))
+            throw MCPError.decodingError(detail: "StoredZone missing key '\(key.stringValue)' at \(path)\n\(context.debugDescription)\n\nResponse preview:\n\(preview)")
+        } catch {
+            let preview = String(json.prefix(500))
+            throw MCPError.decodingError(detail: "StoredZone decode failed: \(error)\n\nResponse preview:\n\(preview)")
+        }
+    }
+
     /// Fetch trend direction
     func getTrend(instrument: String, granularity: String) async throws -> String {
         try await ensureInitialized()

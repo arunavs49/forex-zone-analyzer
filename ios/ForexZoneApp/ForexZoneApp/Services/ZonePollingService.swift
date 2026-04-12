@@ -131,23 +131,25 @@ class ZonePollingService: ObservableObject {
     }
 
     private func checkInstrument(_ instrument: Instrument, dataService: ForexDataService, newZones: inout [(String, Zone)]) async {
-        do {
-            let response: ZoneAnalysisResponse = try await dataService.getZones(instrument: instrument.rawValue, granularity: "M15")
-            let zones: [Zone] = response.supplyZones + response.demandZones
-            for zone in zones {
-                let isFresh: Bool = zone.freshness == .Untested || zone.freshness == .Tested
-                guard isFresh else { continue }
+        for granularity in Granularity.allCases {
+            do {
+                let response: ZoneAnalysisResponse = try await dataService.getStoredZones(instrument: instrument.rawValue, granularity: granularity.rawValue)
+                let zones: [Zone] = response.supplyZones + response.demandZones
+                for zone in zones {
+                    let isFresh: Bool = zone.freshness == .Untested || zone.freshness == .Tested
+                    guard isFresh else { continue }
 
-                let zoneId: String = "\(instrument.rawValue)_\(zone.type)_\(zone.startTime)_\(zone.baseRangeLow)"
-                if !knownZoneIds.contains(zoneId) {
-                    knownZoneIds.insert(zoneId)
-                    if !isFirstPoll {
-                        newZones.append((instrument.rawValue, zone))
+                    let zoneId: String = "\(instrument.rawValue)_\(granularity.rawValue)_\(zone.type)_\(zone.startTime)_\(zone.baseRangeLow)"
+                    if !knownZoneIds.contains(zoneId) {
+                        knownZoneIds.insert(zoneId)
+                        if !isFirstPoll {
+                            newZones.append((instrument.rawValue, zone))
+                        }
                     }
                 }
+            } catch {
+                print("[ZonePolling] Failed to check \(instrument.rawValue) \(granularity.rawValue): \(error.localizedDescription)")
             }
-        } catch {
-            print("[ZonePolling] Failed to check \(instrument.rawValue): \(error.localizedDescription)")
         }
     }
 

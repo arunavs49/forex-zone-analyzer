@@ -102,6 +102,40 @@ public class InMemoryZoneStoreTests
         Assert.Single(result2); // Original should be unaffected
     }
 
+    [Fact]
+    public async Task GetTrend_ReturnsNull_WhenNoTrendStored()
+    {
+        var result = await _store.GetTrendAsync("EUR_USD", "H1", CancellationToken.None);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task UpsertAndGetTrend_RoundTrips()
+    {
+        await _store.UpsertTrendAsync("EUR_USD", "H1", "Up", CancellationToken.None);
+        var result = await _store.GetTrendAsync("EUR_USD", "H1", CancellationToken.None);
+        Assert.Equal("Up", result);
+    }
+
+    [Fact]
+    public async Task UpsertTrend_OverwritesPrevious()
+    {
+        await _store.UpsertTrendAsync("EUR_USD", "H1", "Up", CancellationToken.None);
+        await _store.UpsertTrendAsync("EUR_USD", "H1", "Down", CancellationToken.None);
+        var result = await _store.GetTrendAsync("EUR_USD", "H1", CancellationToken.None);
+        Assert.Equal("Down", result);
+    }
+
+    [Fact]
+    public async Task Trends_DifferentGranularities_AreIsolated()
+    {
+        await _store.UpsertTrendAsync("EUR_USD", "H1", "Up", CancellationToken.None);
+        await _store.UpsertTrendAsync("EUR_USD", "H4", "Down", CancellationToken.None);
+
+        Assert.Equal("Up", await _store.GetTrendAsync("EUR_USD", "H1", CancellationToken.None));
+        Assert.Equal("Down", await _store.GetTrendAsync("EUR_USD", "H4", CancellationToken.None));
+    }
+
     private static Zone CreateZone(ZoneType type, double low, double high, string startTime) => new()
     {
         Type = type,

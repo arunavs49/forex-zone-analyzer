@@ -132,4 +132,38 @@ public class CandleAlignedScheduleTests
             Assert.True(delay > TimeSpan.Zero, $"Delay should be positive at minute {m} for {intervalMinutes}min interval, got {delay}");
         }
     }
+
+    // --- ShouldProcessTimeframe tests ---
+
+    [Fact]
+    public void ShouldProcessTimeframe_M5_AlwaysProcessedOnM5Poll()
+    {
+        // At 12:01 (just after M5 candle close), M5 should be processed
+        var utcNow = new DateTime(2026, 4, 10, 12, 1, 0, DateTimeKind.Utc);
+        Assert.True(ZoneMonitorService.ShouldProcessTimeframe(utcNow, 5, 5));
+    }
+
+    [Fact]
+    public void ShouldProcessTimeframe_H1_OnlyAtHourBoundary()
+    {
+        // At 12:01 (hour boundary), H1 (60 min) should be processed with 5 min poll
+        var atHour = new DateTime(2026, 4, 10, 12, 1, 0, DateTimeKind.Utc);
+        Assert.True(ZoneMonitorService.ShouldProcessTimeframe(atHour, 60, 5));
+
+        // At 12:06 (not hour boundary), H1 should NOT be processed
+        var midHour = new DateTime(2026, 4, 10, 12, 6, 0, DateTimeKind.Utc);
+        Assert.False(ZoneMonitorService.ShouldProcessTimeframe(midHour, 60, 5));
+    }
+
+    [Fact]
+    public void ShouldProcessTimeframe_H4_OnlyAt4HourBoundary()
+    {
+        // At 08:01 (4-hour boundary), H4 should be processed
+        var at4h = new DateTime(2026, 4, 10, 8, 1, 0, DateTimeKind.Utc);
+        Assert.True(ZoneMonitorService.ShouldProcessTimeframe(at4h, 240, 5));
+
+        // At 09:01 (not 4-hour boundary), H4 should NOT be processed
+        var notAt4h = new DateTime(2026, 4, 10, 9, 1, 0, DateTimeKind.Utc);
+        Assert.False(ZoneMonitorService.ShouldProcessTimeframe(notAt4h, 240, 5));
+    }
 }

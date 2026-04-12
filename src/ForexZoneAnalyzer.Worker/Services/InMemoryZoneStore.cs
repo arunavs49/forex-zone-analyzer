@@ -6,6 +6,7 @@ namespace ForexZoneAnalyzer.Worker.Services;
 public class InMemoryZoneStore : IZoneStore
 {
     private readonly ConcurrentDictionary<string, List<Zone>> _store = new();
+    private readonly ConcurrentDictionary<string, string> _trends = new();
 
     public Task<List<Zone>> GetZonesAsync(string instrument, string granularity, CancellationToken cancellationToken)
     {
@@ -18,6 +19,20 @@ public class InMemoryZoneStore : IZoneStore
     {
         var key = $"{instrument}_{granularity}";
         _store[key] = new List<Zone>(zones);
+        return Task.CompletedTask;
+    }
+
+    public Task<string?> GetTrendAsync(string instrument, string granularity, CancellationToken cancellationToken)
+    {
+        var key = $"{instrument}_{granularity}";
+        var trend = _trends.TryGetValue(key, out var existing) ? existing : null;
+        return Task.FromResult(trend);
+    }
+
+    public Task UpsertTrendAsync(string instrument, string granularity, string trend, CancellationToken cancellationToken)
+    {
+        var key = $"{instrument}_{granularity}";
+        _trends[key] = trend;
         return Task.CompletedTask;
     }
 }

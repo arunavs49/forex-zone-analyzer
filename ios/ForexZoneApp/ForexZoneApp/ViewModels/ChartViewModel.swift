@@ -66,27 +66,23 @@ class ChartViewModel: ObservableObject {
                 try await service.configure(url: settings.mcpServerURL, token: settings.bearerToken)
             }
 
+            // Candles fetched live; zones + trend from storage in one call
             async let candlesFetch = service.getCandles(
                 instrument: instrument.rawValue,
                 granularity: granularity.rawValue,
                 count: granularity.defaultCandleCount
             )
-            async let zonesFetch = service.getZones(
-                instrument: instrument.rawValue,
-                granularity: granularity.rawValue,
-                count: granularity.defaultCandleCount
-            )
-            async let trendFetch = service.getTrend(
+            async let storedFetch = service.getStoredZones(
                 instrument: instrument.rawValue,
                 granularity: granularity.rawValue
             )
 
-            let (fetchedCandles, zoneResponse, fetchedTrend) = try await (candlesFetch, zonesFetch, trendFetch)
+            let (fetchedCandles, storedResponse) = try await (candlesFetch, storedFetch)
 
             candles = fetchedCandles
-            supplyZones = zoneResponse.supplyZones
-            demandZones = zoneResponse.demandZones
-            trend = fetchedTrend
+            supplyZones = storedResponse.supplyZones
+            demandZones = storedResponse.demandZones
+            trend = storedResponse.trend ?? "Unknown"
         } catch {
             self.error = error.localizedDescription
         }
