@@ -102,10 +102,10 @@ class AuthService: ObservableObject {
         userDisplayName = nil
     }
 
-    // MARK: - Get Access Token (silent with fallback)
+    // MARK: - Get Access Token (silent with automatic interactive fallback)
 
     /// Returns a valid access token, refreshing silently if needed.
-    /// Call this before every MCP request.
+    /// If the refresh token has expired, automatically prompts for interactive sign-in.
     func getAccessToken() async -> String? {
         guard let app = msalApplication, let account = currentAccount else { return nil }
 
@@ -116,16 +116,38 @@ class AuthService: ObservableObject {
             return result.accessToken
         } catch let error as NSError where error.domain == MSALErrorDomain &&
                     error.code == MSALError.interactionRequired.rawValue {
-            // Token expired and refresh token is also expired — need interactive sign-in
-            await MainActor.run {
-                isSignedIn = false
-                errorMessage = "Session expired. Please sign in again."
-            }
-            return nil
+            // Refresh token expired — try interactive re-auth automatically
+            return await acquireTokenInteractively()
         } catch {
-            await MainActor.run {
-                errorMessage = "Token refresh failed: \(error.localizedDescription)"
-            }
+            print("[AuthService] Silent token refresh failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Attempt interactive token acquisition (used as fallback when silent fails)
+    private func acquireTokenInteractively() async -> String? {
+        guard let app = msalApplication else { return nil }
+
+        guard let windowScene = await UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene }).first,
+              let rootVC = await windowScene.windows.first?.rootViewController else {
+            return nil
+        }
+
+        let webviewParams = await MSALWebviewParameters(authPresentationViewController: rootVC)
+        let interactiveParams = MSALInteractiveTokenParameters(scopes: Self.scopes, webviewParameters: webviewParams)
+
+        do {
+            let result = try await app.acquireToken(with: interactiveParams)
+            currentAccount = result.account
+            isSignedIn = true
+            userDisplayName = result.account.username
+            errorMessage = nil
+            return result.accessToken
+        } catch {
+            print("[AuthService] Interactive re-auth failed: \(error.localizedDescription)")
+            isSignedIn = false
+            errorMessage = "Session expired. Please sign in again."
             return nil
         }
     }
