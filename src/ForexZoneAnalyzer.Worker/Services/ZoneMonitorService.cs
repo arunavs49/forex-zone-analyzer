@@ -102,7 +102,7 @@ public class ZoneMonitorService : BackgroundService
                 // that were already processed recently (e.g. after a restart).
                 // On subsequent cycles, use candle-alignment gating.
                 var dueTimeframes = firstCycle
-                    ? await GetStaleTimeframesAsync(instruments[0], timeframePairs, cycleStart, intervalMinutes, stoppingToken)
+                    ? await GetStaleTimeframesAsync(instruments[0], timeframePairs, cycleStart, stoppingToken)
                     : timeframePairs.Where(tf =>
                         ShouldProcessTimeframe(cycleStart, GetGranularityMinutes(tf.Zone), intervalMinutes)
                       ).ToArray();
@@ -178,7 +178,6 @@ public class ZoneMonitorService : BackgroundService
             InstrumentName sampleInstrument,
             (CandlestickGranularity Zone, CandlestickGranularity Trend, string ZoneStr, string TrendStr)[] allTimeframes,
             DateTime utcNow,
-            int pollIntervalMinutes,
             CancellationToken cancellationToken)
     {
         var stale = new List<(CandlestickGranularity Zone, CandlestickGranularity Trend, string ZoneStr, string TrendStr)>();
@@ -190,18 +189,19 @@ public class ZoneMonitorService : BackgroundService
 
             var candleMinutes = GetGranularityMinutes(tf.Zone);
 
-            var isStale = lastUpdated == null || (utcNow - lastUpdated.Value).TotalMinutes >= candleMinutes;
-            var isCandleAligned = ShouldProcessTimeframe(utcNow, candleMinutes, pollIntervalMinutes);
+            // If UpdatedAt is missing (legacy entity), don't treat as stale —
+            // defer to normal candle-alignment gating on subsequent cycles.
+            if (lastUpdated == null)
+            {
+                _logger.LogDebug("Timeframe {TF} has no UpdatedAt — deferring to candle-alignment gating", tf.ZoneStr);
+                continue;
+            }
 
-            if (isStale && isCandleAligned)
+            if ((utcNow - lastUpdated.Value).TotalMinutes >= candleMinutes)
             {
                 stale.Add(tf);
-                _logger.LogDebug("Timeframe {TF} is stale and candle-aligned (last updated: {LastUpdated})", tf.ZoneStr,
-                    lastUpdated?.ToString("yyyy-MM-dd HH:mm") ?? "never");
-            }
-            else if (isStale)
-            {
-                _logger.LogDebug("Timeframe {TF} is stale but not candle-aligned — deferring to next candle close", tf.ZoneStr);
+                _logger.LogDebug("Timeframe {TF} is stale (last updated: {LastUpdated})", tf.ZoneStr,
+                    lastUpdated.Value.ToString("yyyy-MM-dd HH:mm"));
             }
             else
             {
