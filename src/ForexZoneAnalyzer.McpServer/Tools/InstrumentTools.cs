@@ -20,26 +20,33 @@ public sealed class InstrumentTools
         [Description("Number of candles to retrieve (max 5000, default 100)")] int count = 100,
         CancellationToken cancellationToken = default)
     {
-        var instrumentName = Enum.Parse<InstrumentName>(instrument, ignoreCase: true);
-        var gran = Enum.Parse<CandlestickGranularity>(granularity, ignoreCase: true);
-        count = Math.Clamp(count, 1, 5000);
-
-        var connection = await connectionService.GetConnectionAsync(cancellationToken);
-        var inst = connection.GetInstrument(instrumentName);
-        var candles = await inst.GetLastNCandlesAsync(gran, count, new[] { PricingComponent.Mid });
-
-        var result = candles.Select(c => new
+        try
         {
-            Time = c.Time,
-            Open = c.Mid?.O,
-            High = c.Mid?.H,
-            Low = c.Mid?.L,
-            Close = c.Mid?.C,
-            Volume = c.Volume,
-            Complete = c.Complete
-        }).ToList();
+            var instrumentName = Enum.Parse<InstrumentName>(instrument, ignoreCase: true);
+            var gran = Enum.Parse<CandlestickGranularity>(granularity, ignoreCase: true);
+            count = Math.Clamp(count, 1, 5000);
 
-        return JsonConvert.SerializeObject(result, Formatting.Indented);
+            var connection = await connectionService.GetConnectionAsync(cancellationToken);
+            var inst = connection.GetInstrument(instrumentName);
+            var candles = await inst.GetLastNCandlesAsync(gran, count, new[] { PricingComponent.Mid });
+
+            var result = candles.Select(c => new
+            {
+                Time = c.Time,
+                Open = c.Mid?.O,
+                High = c.Mid?.H,
+                Low = c.Mid?.L,
+                Close = c.Mid?.C,
+                Volume = c.Volume,
+                Complete = c.Complete
+            }).ToList();
+
+            return JsonConvert.SerializeObject(result, Formatting.Indented);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to get candles for {instrument}/{granularity}: {ex.Message}");
+        }
     }
 
     [McpServerTool(Name = "get_candles_by_time"), Description("Get candlestick data for a forex instrument between specific dates.")]

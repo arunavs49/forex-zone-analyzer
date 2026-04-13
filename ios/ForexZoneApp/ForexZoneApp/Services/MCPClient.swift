@@ -68,10 +68,16 @@ actor MCPClient {
         )
 
         // MCP tool results contain an array of content blocks; concatenate text ones
-        return result.content
+        let text = result.content
             .filter { $0.type == "text" }
             .map { $0.text ?? "" }
             .joined()
+
+        if result.isError == true {
+            throw MCPError.rpcError(code: -1, message: text)
+        }
+
+        return text
     }
 
     // MARK: - JSON-RPC Transport
@@ -287,6 +293,7 @@ private struct ToolCallParams: Encodable {
 
 struct ToolResult: Decodable {
     let content: [ToolContent]
+    let isError: Bool?
 }
 
 struct ToolContent: Decodable {
