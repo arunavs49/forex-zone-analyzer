@@ -3,7 +3,8 @@ import Foundation
 struct ZoneAnalysisResponse: Codable {
     let instrument: String
     let granularity: String
-    let candlesAnalyzed: Int
+    let trend: String?
+    let candlesAnalyzed: Int?
     let totalZones: Int
     let supplyZones: [Zone]
     let demandZones: [Zone]
@@ -11,6 +12,7 @@ struct ZoneAnalysisResponse: Codable {
     enum CodingKeys: String, CodingKey {
         case instrument = "Instrument"
         case granularity = "Granularity"
+        case trend = "Trend"
         case candlesAnalyzed = "CandlesAnalyzed"
         case totalZones = "TotalZones"
         case supplyZones = "SupplyZones"

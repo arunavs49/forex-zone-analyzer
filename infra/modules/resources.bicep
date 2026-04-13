@@ -268,6 +268,14 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) 
               name: 'AZURE_CLIENT_ID'
               value: managedIdentity.properties.clientId
             }
+            {
+              name: 'Storage__AccountName'
+              value: storageAccount.name
+            }
+            {
+              name: 'Storage__TableName'
+              value: 'zones'
+            }
           ]
         }
       ]

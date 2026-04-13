@@ -40,19 +40,24 @@ public class ZoneMonitorService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Parse granularities once
-        var zoneGranularity = Enum.Parse<CandlestickGranularity>(_monitorSettings.ZoneGranularity, ignoreCase: true);
-        var trendGranularity = Enum.Parse<CandlestickGranularity>(_monitorSettings.TrendGranularity, ignoreCase: true);
         var instruments = _monitorSettings.Instruments
             .Select(i => Enum.Parse<InstrumentName>(i, ignoreCase: true))
             .ToArray();
 
-        // Derive poll interval from zone granularity
-        var intervalMinutes = GetGranularityMinutes(zoneGranularity);
-        _logger.LogInformation("Zone Monitor starting. Instruments: [{Instruments}], Zone TF: {ZoneTF}, Trend TF: {TrendTF}, Interval: {Interval}min",
+        // Parse all timeframe pairs
+        var timeframePairs = _monitorSettings.Timeframes.Select(tf => (
+            Zone: Enum.Parse<CandlestickGranularity>(tf.ZoneGranularity, ignoreCase: true),
+            Trend: Enum.Parse<CandlestickGranularity>(tf.TrendGranularity, ignoreCase: true),
+            ZoneStr: tf.ZoneGranularity,
+            TrendStr: tf.TrendGranularity
+        )).ToArray();
+
+        // Poll interval is the smallest zone granularity
+        var intervalMinutes = timeframePairs.Min(tf => GetGranularityMinutes(tf.Zone));
+        var timeframeList = string.Join(", ", timeframePairs.Select(tf => $"{tf.ZoneStr}→{tf.TrendStr}"));
+        _logger.LogInformation("Zone Monitor starting. Instruments: [{Instruments}], Timeframes: [{Timeframes}], Interval: {Interval}min",
             string.Join(", ", _monitorSettings.Instruments),
-            _monitorSettings.ZoneGranularity,
-            _monitorSettings.TrendGranularity,
+            timeframeList,
             intervalMinutes);
 
         // Wait for the first candle-aligned slot before starting
@@ -61,13 +66,25 @@ public class ZoneMonitorService : BackgroundService
             initialDelay, DateTime.UtcNow + initialDelay);
         await Task.Delay(initialDelay, stoppingToken);
 
+        var firstCycle = true;
         while (!stoppingToken.IsCancellationRequested)
         {
+            var cycleStart = DateTime.UtcNow;
+
             try
             {
                 foreach (var instrument in instruments)
                 {
-                    await ProcessInstrumentAsync(instrument, zoneGranularity, trendGranularity, stoppingToken);
+                    foreach (var tf in timeframePairs)
+                    {
+                        // Process all timeframes on first cycle to seed data;
+                        // afterwards only when the candle has closed since last cycle
+                        var tfMinutes = GetGranularityMinutes(tf.Zone);
+                        if (firstCycle || ShouldProcessTimeframe(cycleStart, tfMinutes, intervalMinutes))
+                        {
+                            await ProcessInstrumentAsync(instrument, tf.Zone, tf.Trend, tf.ZoneStr, stoppingToken);
+                        }
+                    }
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -82,10 +99,22 @@ public class ZoneMonitorService : BackgroundService
             var delay = GetDelayUntilNextSlot(DateTime.UtcNow, intervalMinutes);
             _logger.LogInformation("Cycle complete. Next poll at {NextRun:HH:mm:ss} UTC (in {Delay})",
                 DateTime.UtcNow + delay, delay);
+            firstCycle = false;
             await Task.Delay(delay, stoppingToken);
         }
 
         _logger.LogInformation("Zone Monitor stopping.");
+    }
+
+    /// <summary>
+    /// Determines whether a timeframe should be processed in the current cycle.
+    /// A timeframe is due when the current time aligns with its candle interval.
+    /// </summary>
+    internal static bool ShouldProcessTimeframe(DateTime utcNow, int timeframeMinutes, int pollIntervalMinutes)
+    {
+        var totalMinutes = utcNow.Hour * 60 + utcNow.Minute;
+        // The candle closed at the start of the current slot for this timeframe
+        return totalMinutes % timeframeMinutes < pollIntervalMinutes;
     }
 
     /// <summary>
@@ -144,10 +173,11 @@ public class ZoneMonitorService : BackgroundService
         InstrumentName instrument,
         CandlestickGranularity zoneGranularity,
         CandlestickGranularity trendGranularity,
+        string granularityStr,
         CancellationToken cancellationToken)
     {
         var instrumentName = instrument.ToString();
-        _logger.LogDebug("Processing {Instrument}", instrumentName);
+        _logger.LogDebug("Processing {Instrument} {Granularity}", instrumentName, granularityStr);
 
         try
         {
@@ -164,7 +194,6 @@ public class ZoneMonitorService : BackgroundService
             var freshZones = zoneManager.GetSupplyZones().Concat(zoneManager.GetDemandZones()).ToList();
 
             // 3. Load previously persisted zones
-            var granularityStr = _monitorSettings.ZoneGranularity;
             var persistedZones = await _zoneStore.GetZonesAsync(instrumentName, granularityStr, cancellationToken);
 
             // 4. Find new zones (not in persisted set)
@@ -174,22 +203,25 @@ public class ZoneMonitorService : BackgroundService
             // 5. Persist all fresh zones (updates Freshness, Worked, SubZone for existing ones)
             await _zoneStore.UpsertZonesAsync(instrumentName, granularityStr, freshZones, cancellationToken);
 
-            _logger.LogInformation("{Instrument}: {Total} zones ({New} new, {Supply} supply, {Demand} demand)",
-                instrumentName, freshZones.Count, newZones.Count,
-                freshZones.Count(z => z.Type == ZoneType.Supply),
-                freshZones.Count(z => z.Type == ZoneType.Demand));
+            // 6. Compute and persist trend
+            var trend = await GetTrendAsync(instrument, trendGranularity, cancellationToken);
+            await _zoneStore.UpsertTrendAsync(instrumentName, granularityStr, trend, cancellationToken);
 
-            // 6. Send notifications for new zones that are not broken
-            if (newZones.Count > 0)
+            _logger.LogInformation("{Instrument} {Granularity}: {Total} zones ({New} new, {Supply} supply, {Demand} demand), trend={Trend}",
+                instrumentName, granularityStr, freshZones.Count, newZones.Count,
+                freshZones.Count(z => z.Type == ZoneType.Supply),
+                freshZones.Count(z => z.Type == ZoneType.Demand),
+                trend);
+
+            // 7. Send notifications only for H1 timeframe new zones that are not broken
+            if (newZones.Count > 0 && zoneGranularity == CandlestickGranularity.H1)
             {
                 var activeNewZones = newZones.Where(z => z.Freshness != ZoneFreshness.Broken).ToList();
-                _logger.LogInformation("{Instrument}: {Active} active new zones (skipped {Broken} broken)",
-                    instrumentName, activeNewZones.Count, newZones.Count - activeNewZones.Count);
+                _logger.LogInformation("{Instrument} {Granularity}: {Active} active new zones (skipped {Broken} broken)",
+                    instrumentName, granularityStr, activeNewZones.Count, newZones.Count - activeNewZones.Count);
 
                 if (activeNewZones.Count > 0)
                 {
-                    var trend = await GetTrendAsync(instrument, trendGranularity, cancellationToken);
-
                     foreach (var zone in activeNewZones)
                     {
                         await _notificationService.SendZoneAlertAsync(instrumentName, granularityStr, zone, trend, cancellationToken);
@@ -199,7 +231,7 @@ public class ZoneMonitorService : BackgroundService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing {Instrument}", instrumentName);
+            _logger.LogError(ex, "Error processing {Instrument} {Granularity}", instrumentName, granularityStr);
         }
     }
 

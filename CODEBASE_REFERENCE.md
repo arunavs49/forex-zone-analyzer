@@ -23,7 +23,7 @@
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │               ForexZoneAnalyzer.McpServer                    │
-│         MCP server: 11 tools for zone analysis               │
+│         MCP server: 12 tools for zone analysis               │
 │         (Azure Container Apps + Entra ID auth)               │
 ├──────────────────────────────────────────────────────────────┤
 │               ForexZoneAnalyzer.Worker                        │
@@ -368,7 +368,7 @@ Main Menu
 | `Client.Test` | Auto-generated xUnit stubs — 1250 tests (mostly `// TODO` bodies that pass) |
 | `PatternAnalysis.Test` | **39 real tests:** 4 ZoneManager, 7 ZoneFinder freshness/worked, 3 base overlap, 8 sub-zone, 17 TrendManager swing detection |
 | `McpServer.Test` | **20 tests:** MCP tool integration tests |
-| `Worker.Test` | **63 tests:** InMemoryZoneStore, ConsoleNotificationService, MonitorSettings, zone change detection, candle-aligned scheduling |
+| `Worker.Test` | **75 tests:** InMemoryZoneStore (with trend), ConsoleNotificationService, MonitorSettings, zone change detection, candle-aligned scheduling, ShouldProcessTimeframe |
 
 #### Test Coverage
 
@@ -379,11 +379,11 @@ Main Menu
 | `ZoneFinderBaseOverlapTests` | 3 | Base absorption of overlapping excited candles at 75% threshold |
 | `ZoneFinderSubZoneTests` | 8 | Sub-zone detection: same-type overlap ≥10%, cross-type no match, broken zones excluded |
 | `TrendManagerTests` | 17 | Swing-based trend: uptrend/downtrend/sideways detection, swing point identification, config variations, edge cases |
-| `InMemoryZoneStoreTests` | 7 | Upsert/get round-trip, overwrite, instrument/granularity isolation, copy semantics |
+| `InMemoryZoneStoreTests` | 11 | Upsert/get round-trip, overwrite, instrument/granularity isolation, copy semantics, trend CRUD |
 | `ConsoleNotificationServiceTests` | 7 | FormatAlert output: instrument, type, trend, range, freshness, sub-zone |
-| `MonitorSettingsTests` | 6 | Default config values (instruments, granularities, poll interval, cache size) |
+| `MonitorSettingsTests` | 12 | Default config values (instruments, timeframe pairs, poll interval, cache size) |
 | `ZoneChangeDetectionTests` | 10 | Zone key generation, change detection diffing (new/existing/all-new/none-new) |
-| `CandleAlignedScheduleTests` | 15+ | Candle-aligned scheduling (M15/H1/H4), granularity mapping, invariants |
+| `CandleAlignedScheduleTests` | 18+ | Candle-aligned scheduling (M15/H1/H4), granularity mapping, ShouldProcessTimeframe, invariants |
 
 ---
 
@@ -404,7 +404,7 @@ Main Menu
 | Area | Current State | What's Needed |
 |------|---------------|---------------|
 | **Caching** | ✅ Worker has `CandleCacheService` (2000 sliding window) | `CachedInstrument` in DataProvider is still a no-op; consider unifying |
-| **Notifications** | ✅ ACS Email + Push (Azure Notification Hubs) + console fallback in Worker | Add more channels (SMS, Telegram) |
+| **Notifications** | ✅ ACS Email (H1 zones only) + console fallback in Worker | Add more channels (SMS, Telegram) |
 | **Backtesting** | None | Build historical simulation engine using cached candle data |
 | **Trade Setup** | Manual via console prompts | Automate: detect zone + trend → generate trade parameters |
 | **Configuration** | ✅ Worker uses `appsettings.json` + env vars; MCP uses Key Vault | Playground still uses console prompts |
@@ -466,7 +466,7 @@ var trend = TrendManager.Create(candles);
 ```
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml                      # CI/CD: test → deploy (Bicep + ACR + Container Apps)
+│       └── deploy.yml                      # CI/CD: test → deploy (push to main + workflow_dispatch)
 ├── infra/
 │   ├── main.bicep                          # Subscription-level orchestrator
 │   └── modules/
@@ -505,15 +505,16 @@ var trend = TrendManager.Create(candles);
     │   ├── ZoneFinderBaseOverlapTests.cs
     │   ├── ZoneFinderSubZoneTests.cs
     │   └── TrendManagerTests.cs
-    ├── ForexZoneAnalyzer.McpServer/            # MCP server (11 tools)
-    │   ├── Program.cs                          # Host builder, Entra ID auth, MapMcp("/mcp")
+    ├── ForexZoneAnalyzer.McpServer/            # MCP server (12 tools)
+    │   ├── Program.cs                          # Host builder, Entra ID auth, Table Storage, MapMcp("/mcp")
     │   └── Tools/
-    │       └── InstrumentTools.cs              # All 11 MCP tool methods
+    │       ├── InstrumentTools.cs              # Live OANDA MCP tools (candles, zones, trend)
+    │       └── StoredZoneTools.cs              # Pre-computed zones + trend from Table Storage
     ├── ForexZoneAnalyzer.McpServer.Test/       # 20 integration tests
     ├── ForexZoneAnalyzer.Worker/               # Background zone monitor
     │   ├── Program.cs                          # Host builder, DI wiring
     │   ├── Configuration/
-    │   │   └── MonitorSettings.cs              # Config POCO (instruments, intervals)
+    │   │   └── MonitorSettings.cs              # Config POCO (instruments, timeframe pairs)
     │   └── Services/
     │       ├── ZoneMonitorService.cs           # BackgroundService polling loop
     │       ├── CandleCacheService.cs           # Incremental 2000-candle cache
@@ -526,7 +527,7 @@ var trend = TrendManager.Create(candles);
     │       ├── EmailNotificationService.cs     # ACS Email (production)
     │       ├── PushNotificationService.cs      # Azure Notification Hub → APNs
     │       └── CompositeNotificationService.cs # Dispatches to email + push in parallel
-    └── ForexZoneAnalyzer.Worker.Test/          # 63 tests
+    └── ForexZoneAnalyzer.Worker.Test/          # 75 tests
         ├── InMemoryZoneStoreTests.cs
         ├── ConsoleNotificationServiceTests.cs
         ├── PushNotificationServiceTests.cs
@@ -571,7 +572,7 @@ var trend = TrendManager.Create(candles);
 6. ~~**EOL framework**~~ — ✅ Upgraded to .NET 10
 7. ~~**RestSharp vulnerability**~~ — ✅ Upgraded to RestSharp 112.1.0
 8. ~~**No caching**~~ — ✅ Worker has `CandleCacheService` with 2000-candle sliding window + incremental fetching
-9. ~~**No notifications**~~ — ✅ ACS Email notifications in Worker (HTML + plain text), push notifications via Azure Notification Hubs to iOS app, console fallback in dev
+9. ~~**No notifications**~~ — ✅ ACS Email notifications in Worker (H1 zones only, HTML + plain text), iOS app polls stored zones from Table Storage via `get_stored_zones` MCP tool, console fallback in dev
 10. ~~**No configuration**~~ — ✅ Worker uses `appsettings.json` + environment variables; MCP server uses Key Vault
 11. ~~**Secret management**~~ — ✅ Azure Key Vault for OANDA token; Container App secrets for ACS connection string
 12. ~~**TrendManager fragility**~~ — ✅ Rewritten with swing-based detection; returns `TrendDirection` enum, handles edge cases (< 2 candles → Sideways), configurable via `TrendConfiguration`
@@ -595,7 +596,7 @@ var trend = TrendManager.Create(candles);
 forex-zone-analyzer
 ├── PatternAnalysis/         # Zone detection, swing-based trend, candle classification
 ├── Oanda Client + SDK/      # Full OANDA V20 API: candles, accounts, trades
-├── MCP Server/              # 11 tools exposed via MCP protocol (Entra ID auth)
+├── MCP Server/              # 12 tools exposed via MCP protocol (Entra ID auth)
 ├── Worker/                  # Background monitoring: cache → detect → notify
 │   ├── Caching/             # CandleCacheService (2000 sliding window)
 │   ├── Persistence/         # IZoneStore (Table Storage / in-memory)

@@ -20,24 +20,31 @@ public class MonitorSettingsTests
     }
 
     [Fact]
-    public void Defaults_ZoneGranularity_IsH1()
+    public void Defaults_HaveSixTimeframePairs()
     {
         var settings = new MonitorSettings();
-        Assert.Equal("H1", settings.ZoneGranularity);
+        Assert.Equal(6, settings.Timeframes.Length);
+    }
+
+    [Theory]
+    [InlineData(0, "M5",  "M30")]
+    [InlineData(1, "M15", "H1")]
+    [InlineData(2, "M30", "H4")]
+    [InlineData(3, "H1",  "H8")]
+    [InlineData(4, "H4",  "D")]
+    [InlineData(5, "D",   "W")]
+    public void Defaults_TimeframePair_HasCorrectMapping(int index, string expectedZone, string expectedTrend)
+    {
+        var settings = new MonitorSettings();
+        Assert.Equal(expectedZone, settings.Timeframes[index].ZoneGranularity);
+        Assert.Equal(expectedTrend, settings.Timeframes[index].TrendGranularity);
     }
 
     [Fact]
-    public void Defaults_TrendGranularity_IsH8()
+    public void Defaults_PollInterval_Is5Minutes()
     {
         var settings = new MonitorSettings();
-        Assert.Equal("H8", settings.TrendGranularity);
-    }
-
-    [Fact]
-    public void Defaults_PollInterval_Is60Minutes()
-    {
-        var settings = new MonitorSettings();
-        Assert.Equal(60, settings.PollIntervalMinutes);
+        Assert.Equal(5, settings.PollIntervalMinutes);
     }
 
     [Fact]

@@ -50,7 +50,7 @@ Exciting candles whose range overlaps ≥75% with the existing base are absorbed
 # Build (requires .NET 10 SDK)
 dotnet build src/ZoneAnalyzer.sln
 
-# Run tests (1320 tests)
+# Run tests (1384 tests)
 dotnet test src/ZoneAnalyzer.sln
 
 # Run interactive playground
@@ -71,10 +71,10 @@ dotnet run --project src/ForexZoneAnalyzer.Worker
 | `GeriRemenyi.Oanda.V20.Sdk` | High-level SDK wrapper (connection, candle pagination, trades) |
 | `ZoneAnalyzer.PatternAnalysis` | Core zone detection: ZoneFinder state machine, swing-based TrendManager, candle classification |
 | `ZoneAnalyzer.DataProvider` | Instrument wrapper (pass-through) |
-| `ForexZoneAnalyzer.McpServer` | MCP server with 11 tools for interactive zone analysis |
-| `ForexZoneAnalyzer.Worker` | Background worker monitoring currency pairs for new zones with email alerts |
+| `ForexZoneAnalyzer.McpServer` | MCP server with 12 tools for interactive zone analysis |
+| `ForexZoneAnalyzer.Worker` | Background worker monitoring currency pairs for new zones with email alerts (H1 only) |
 | `GeriRemenyi.Oanda.V20.Sdk.Playground` | Interactive console demo |
-| `*.Test` | xUnit test projects (1372 tests total) |
+| `*.Test` | xUnit test projects (1384 tests total) |
 
 ## Azure Infrastructure
 
@@ -94,22 +94,48 @@ Deployed via Bicep (`infra/`) to Azure Container Apps:
 ## CI/CD
 
 GitHub Actions pipeline (`.github/workflows/deploy.yml`):
-1. **Build & Test** — restore, build, run all 1320 tests
+1. **Build & Test** — restore, build, run all 1384 tests
 2. **Deploy** — build Docker images, deploy Bicep infra, update Container Apps
 
-Triggered on every push to `main`. Uses OIDC federated credentials (no stored secrets for Azure auth).
+Triggered on push to `main` or manual `workflow_dispatch`. Uses OIDC federated credentials (no stored secrets for Azure auth).
 
 ## Worker Service
 
-Monitors configurable currency pairs (default: EUR_USD, GBP_USD, USD_JPY, AUD_USD) on 15-minute timeframe for new supply/demand zones.
+Monitors 7 major USD pairs across 6 timeframes for new supply/demand zones.
+
+**Instruments:** EUR_USD, GBP_USD, USD_JPY, AUD_USD, NZD_USD, USD_CAD, USD_CHF
+
+**Timeframes (zone → trend):**
+
+| Zone | Trend |
+|------|-------|
+| M5   | M30   |
+| M15  | H1    |
+| M30  | H4    |
+| H1   | H8    |
+| H4   | D     |
+| D    | W     |
 
 Features:
+- **Multi-timeframe processing** — processes all 6 timeframes each cycle, running higher TFs only when their candle closes; seeds all timeframes on first cycle
 - **Incremental candle caching** — 2000-candle sliding window, fetches only new candles after initial load
-- **Zone persistence** — Azure Table Storage (prod) / in-memory (dev)
+- **Zone persistence** — Azure Table Storage (prod) / in-memory (dev) with zones + trend stored per instrument/granularity
 - **Change detection** — only alerts on genuinely new zones
-- **Email notifications** — Azure Communication Services (prod) / console (dev)
-- **Trend context** — swing-based trend detection (Higher Highs/Higher Lows) included in alerts
-- **Configurable** — instruments, timeframes, poll interval, zone configuration all via appsettings
+- **Email notifications** — H1 timeframe only, via Azure Communication Services (prod) / console (dev)
+- **Trend context** — swing-based trend detection (Higher Highs/Higher Lows) stored alongside zones
+- **Configurable** — instruments, timeframe pairs, poll interval, zone configuration all via appsettings
+
+## MCP Server Tools
+
+| Tool | Source | Description |
+|------|--------|-------------|
+| `get_candles` | Live (OANDA) | Candlestick OHLC data by count |
+| `get_candles_by_time` | Live (OANDA) | Candlestick data by date range |
+| `get_supply_demand_zones` | Live (OANDA) | Compute zones on-the-fly from live data |
+| `get_stored_zones` | Storage | Pre-computed zones + trend from Table Storage (used by iOS app) |
+| `get_trend` | Live (OANDA) | Compute trend direction on-the-fly |
+| Account tools | Live (OANDA) | Account balance, summary |
+| Trade tools | Live (OANDA) | List/manage open trades |
 
 ## Documentation
 

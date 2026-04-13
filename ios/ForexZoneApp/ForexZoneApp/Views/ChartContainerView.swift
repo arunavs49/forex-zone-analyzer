@@ -35,12 +35,12 @@ struct ChartContainerView: View {
                     // Zone counts
                     HStack(spacing: 4) {
                         Circle().fill(.red.opacity(0.6)).frame(width: 6, height: 6)
-                        Text("\(viewModel.visibleSupplyZones.count)")
+                        Text("\(viewModel.chartSupplyZones.count)")
                             .font(.caption2.weight(.medium))
                     }
                     HStack(spacing: 4) {
                         Circle().fill(.green.opacity(0.6)).frame(width: 6, height: 6)
-                        Text("\(viewModel.visibleDemandZones.count)")
+                        Text("\(viewModel.chartDemandZones.count)")
                             .font(.caption2.weight(.medium))
                     }
                 }
@@ -89,8 +89,8 @@ struct ChartContainerView: View {
             } else {
                 CandlestickChartView(
                     candles: viewModel.candles,
-                    supplyZones: viewModel.visibleSupplyZones,
-                    demandZones: viewModel.visibleDemandZones,
+                    supplyZones: viewModel.chartSupplyZones,
+                    demandZones: viewModel.chartDemandZones,
                     focusedZone: $viewModel.focusedZone
                 )
                 .background(Color(red: 0.08, green: 0.09, blue: 0.12))
