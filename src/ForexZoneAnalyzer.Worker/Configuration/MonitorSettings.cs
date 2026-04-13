@@ -20,7 +20,6 @@ public class MonitorSettings
         new() { ZoneGranularity = "D",   TrendGranularity = "W"   },
     ];
 
-    public int PollIntervalMinutes { get; set; } = 5;
     public int CandleCacheSize { get; set; } = 2000;
     public int CandleOverlapCount { get; set; } = 5;
 }

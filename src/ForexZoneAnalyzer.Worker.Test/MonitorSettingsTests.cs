@@ -41,13 +41,6 @@ public class MonitorSettingsTests
     }
 
     [Fact]
-    public void Defaults_PollInterval_Is5Minutes()
-    {
-        var settings = new MonitorSettings();
-        Assert.Equal(5, settings.PollIntervalMinutes);
-    }
-
-    [Fact]
     public void Defaults_CandleCacheSize_Is2000()
     {
         var settings = new MonitorSettings();
