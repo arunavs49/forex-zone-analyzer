@@ -66,7 +66,7 @@ public class EmailNotificationService : INotificationService
 
     private async Task SendWithRetryAsync(EmailMessage message, CancellationToken cancellationToken)
     {
-        const int maxRetries = 3;
+        const int maxRetries = 0; // Set to 0 for no retries, increase if needed
         for (int attempt = 0; attempt <= maxRetries; attempt++)
         {
             try
