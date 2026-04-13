@@ -48,11 +48,11 @@ class ChartViewModel: ObservableObject {
     }
 
     var chartSupplyZones: [Zone] {
-        zonesInCandleRange(supplyZones).filter { $0.freshness != .Broken }
+        zonesInCandleRange(supplyZones)
     }
 
     var chartDemandZones: [Zone] {
-        zonesInCandleRange(demandZones).filter { $0.freshness != .Broken }
+        zonesInCandleRange(demandZones)
     }
 
     // MARK: - List zones (untested/tested within 1000 pips + newest 10)
