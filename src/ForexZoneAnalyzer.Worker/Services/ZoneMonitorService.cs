@@ -3,6 +3,8 @@ using ForexZoneAnalyzer.Worker.Configuration;
 using GeriRemenyi.Oanda.V20.Client.Model;
 using GeriRemenyi.Oanda.V20.Sdk.Common.Types;
 using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Retry;
 using ZoneAnalyzer.PatternAnalysis;
 
 namespace ForexZoneAnalyzer.Worker.Services;
@@ -17,6 +19,7 @@ public class ZoneMonitorService : BackgroundService
     private readonly MonitorSettings _monitorSettings;
     private readonly ZoneConfiguration _zoneConfig;
     private readonly TrendConfiguration _trendConfig;
+    private readonly ResiliencePipeline _retryPipeline;
 
     public ZoneMonitorService(
         CandleCacheService candleCache,
@@ -36,6 +39,22 @@ public class ZoneMonitorService : BackgroundService
         _monitorSettings = monitorSettings.Value;
         _zoneConfig = zoneConfig.Value;
         _trendConfig = trendConfig.Value;
+
+        _retryPipeline = new ResiliencePipelineBuilder()
+            .AddRetry(new RetryStrategyOptions
+            {
+                MaxRetryAttempts = 3,
+                BackoffType = DelayBackoffType.Exponential,
+                Delay = TimeSpan.FromSeconds(5),
+                OnRetry = args =>
+                {
+                    _logger.LogWarning("Retry attempt {Attempt} after {Delay}s due to: {Error}",
+                        args.AttemptNumber + 1, args.RetryDelay.TotalSeconds,
+                        args.Outcome.Exception?.Message ?? "unknown");
+                    return ValueTask.CompletedTask;
+                }
+            })
+            .Build();
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -73,19 +92,17 @@ public class ZoneMonitorService : BackgroundService
 
             try
             {
-                foreach (var instrument in instruments)
-                {
-                    foreach (var tf in timeframePairs)
-                    {
-                        // Process all timeframes on first cycle to seed data;
-                        // afterwards only when the candle has closed since last cycle
-                        var tfMinutes = GetGranularityMinutes(tf.Zone);
-                        if (firstCycle || ShouldProcessTimeframe(cycleStart, tfMinutes, intervalMinutes))
-                        {
-                            await ProcessInstrumentAsync(instrument, tf.Zone, tf.Trend, tf.ZoneStr, stoppingToken);
-                        }
-                    }
-                }
+                // Determine which timeframes are due this cycle
+                var dueTimeframes = timeframePairs.Where(tf =>
+                    firstCycle || ShouldProcessTimeframe(cycleStart, GetGranularityMinutes(tf.Zone), intervalMinutes)
+                ).ToArray();
+
+                // Process all instruments in parallel
+                var tasks = instruments.Select(instrument =>
+                    ProcessInstrumentAllTimeframesAsync(instrument, dueTimeframes, stoppingToken)
+                ).ToArray();
+
+                await Task.WhenAll(tasks);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -93,7 +110,7 @@ public class ZoneMonitorService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during zone monitoring cycle");
+                _logger.LogError(ex, "Unexpected error during zone monitoring cycle");
             }
 
             var delay = GetDelayUntilNextSlot(DateTime.UtcNow, intervalMinutes);
@@ -104,6 +121,31 @@ public class ZoneMonitorService : BackgroundService
         }
 
         _logger.LogInformation("Zone Monitor stopping.");
+    }
+
+    /// <summary>
+    /// Process all due timeframes for a single instrument. Each instrument runs
+    /// in parallel with others; timeframes within an instrument run sequentially.
+    /// </summary>
+    private async Task ProcessInstrumentAllTimeframesAsync(
+        InstrumentName instrument,
+        (CandlestickGranularity Zone, CandlestickGranularity Trend, string ZoneStr, string TrendStr)[] timeframes,
+        CancellationToken cancellationToken)
+    {
+        foreach (var tf in timeframes)
+        {
+            try
+            {
+                await _retryPipeline.ExecuteAsync(
+                    async ct => await ProcessInstrumentAsync(instrument, tf.Zone, tf.Trend, tf.ZoneStr, ct),
+                    cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Failed to process {Instrument} {Granularity} after retries",
+                    instrument, tf.ZoneStr);
+            }
+        }
     }
 
     /// <summary>
@@ -179,59 +221,57 @@ public class ZoneMonitorService : BackgroundService
         var instrumentName = instrument.ToString();
         _logger.LogDebug("Processing {Instrument} {Granularity}", instrumentName, granularityStr);
 
-        try
+        // 1. Get candles from cache (incremental fetch)
+        var candles = await _candleCache.GetCandlesAsync(instrument, zoneGranularity, cancellationToken);
+        if (candles.Count == 0)
         {
-            // 1. Get candles from cache (incremental fetch)
-            var candles = await _candleCache.GetCandlesAsync(instrument, zoneGranularity, cancellationToken);
-            if (candles.Count == 0)
+            _logger.LogWarning("No candles for {Instrument} {Granularity}", instrumentName, zoneGranularity);
+            return;
+        }
+
+        // 2. Run ZoneManager with configurable ZoneConfiguration
+        var zoneManager = ZoneManager.Create(candles, _zoneConfig);
+        var freshZones = zoneManager.GetSupplyZones().Concat(zoneManager.GetDemandZones()).ToList();
+
+        // 3. Load previously persisted zones
+        var persistedZones = await _zoneStore.GetZonesAsync(instrumentName, granularityStr, cancellationToken);
+
+        // 4. Find new zones (not in persisted set)
+        var persistedKeys = new HashSet<string>(persistedZones.Select(GetZoneKey));
+        var newZones = freshZones.Where(z => !persistedKeys.Contains(GetZoneKey(z))).ToList();
+
+        // 5. Persist all fresh zones (updates Freshness, Worked, SubZone for existing ones)
+        await _zoneStore.UpsertZonesAsync(instrumentName, granularityStr, freshZones, cancellationToken);
+
+        // 6. Compute and persist trend
+        var trend = await GetTrendAsync(instrument, trendGranularity, cancellationToken);
+        await _zoneStore.UpsertTrendAsync(instrumentName, granularityStr, trend, cancellationToken);
+
+        _logger.LogInformation("{Instrument} {Granularity}: {Total} zones ({New} new, {Supply} supply, {Demand} demand), trend={Trend}",
+            instrumentName, granularityStr, freshZones.Count, newZones.Count,
+            freshZones.Count(z => z.Type == ZoneType.Supply),
+            freshZones.Count(z => z.Type == ZoneType.Demand),
+            trend);
+
+        // 7. Send notifications only for H1 timeframe new zones that are not broken
+        //    Fire-and-forget: notification failures should not crash or retry the cycle
+        if (newZones.Count > 0 && zoneGranularity == CandlestickGranularity.H1)
+        {
+            var activeNewZones = newZones.Where(z => z.Freshness != ZoneFreshness.Broken).ToList();
+            _logger.LogInformation("{Instrument} {Granularity}: {Active} active new zones (skipped {Broken} broken)",
+                instrumentName, granularityStr, activeNewZones.Count, newZones.Count - activeNewZones.Count);
+
+            foreach (var zone in activeNewZones)
             {
-                _logger.LogWarning("No candles for {Instrument} {Granularity}", instrumentName, zoneGranularity);
-                return;
-            }
-
-            // 2. Run ZoneManager with configurable ZoneConfiguration
-            var zoneManager = ZoneManager.Create(candles, _zoneConfig);
-            var freshZones = zoneManager.GetSupplyZones().Concat(zoneManager.GetDemandZones()).ToList();
-
-            // 3. Load previously persisted zones
-            var persistedZones = await _zoneStore.GetZonesAsync(instrumentName, granularityStr, cancellationToken);
-
-            // 4. Find new zones (not in persisted set)
-            var persistedKeys = new HashSet<string>(persistedZones.Select(GetZoneKey));
-            var newZones = freshZones.Where(z => !persistedKeys.Contains(GetZoneKey(z))).ToList();
-
-            // 5. Persist all fresh zones (updates Freshness, Worked, SubZone for existing ones)
-            await _zoneStore.UpsertZonesAsync(instrumentName, granularityStr, freshZones, cancellationToken);
-
-            // 6. Compute and persist trend
-            var trend = await GetTrendAsync(instrument, trendGranularity, cancellationToken);
-            await _zoneStore.UpsertTrendAsync(instrumentName, granularityStr, trend, cancellationToken);
-
-            _logger.LogInformation("{Instrument} {Granularity}: {Total} zones ({New} new, {Supply} supply, {Demand} demand), trend={Trend}",
-                instrumentName, granularityStr, freshZones.Count, newZones.Count,
-                freshZones.Count(z => z.Type == ZoneType.Supply),
-                freshZones.Count(z => z.Type == ZoneType.Demand),
-                trend);
-
-            // 7. Send notifications only for H1 timeframe new zones that are not broken
-            if (newZones.Count > 0 && zoneGranularity == CandlestickGranularity.H1)
-            {
-                var activeNewZones = newZones.Where(z => z.Freshness != ZoneFreshness.Broken).ToList();
-                _logger.LogInformation("{Instrument} {Granularity}: {Active} active new zones (skipped {Broken} broken)",
-                    instrumentName, granularityStr, activeNewZones.Count, newZones.Count - activeNewZones.Count);
-
-                if (activeNewZones.Count > 0)
+                try
                 {
-                    foreach (var zone in activeNewZones)
-                    {
-                        await _notificationService.SendZoneAlertAsync(instrumentName, granularityStr, zone, trend, cancellationToken);
-                    }
+                    await _notificationService.SendZoneAlertAsync(instrumentName, granularityStr, zone, trend, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to send notification for {Instrument} {Zone}", instrumentName, zone.Type);
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error processing {Instrument} {Granularity}", instrumentName, granularityStr);
         }
     }
 
