@@ -71,8 +71,8 @@ dotnet run --project src/ForexZoneAnalyzer.Worker
 | `GeriRemenyi.Oanda.V20.Sdk` | High-level SDK wrapper (connection, candle pagination, trades) |
 | `ZoneAnalyzer.PatternAnalysis` | Core zone detection: ZoneFinder state machine, swing-based TrendManager, candle classification |
 | `ZoneAnalyzer.DataProvider` | Instrument wrapper (pass-through) |
-| `ForexZoneAnalyzer.McpServer` | MCP server with 11 tools for interactive zone analysis |
-| `ForexZoneAnalyzer.Worker` | Background worker monitoring currency pairs for new zones with email alerts |
+| `ForexZoneAnalyzer.McpServer` | MCP server with 12 tools for interactive zone analysis |
+| `ForexZoneAnalyzer.Worker` | Background worker monitoring currency pairs for new zones with email alerts (H1 only) |
 | `GeriRemenyi.Oanda.V20.Sdk.Playground` | Interactive console demo |
 | `*.Test` | xUnit test projects (1384 tests total) |
 
@@ -97,7 +97,7 @@ GitHub Actions pipeline (`.github/workflows/deploy.yml`):
 1. **Build & Test** — restore, build, run all 1384 tests
 2. **Deploy** — build Docker images, deploy Bicep infra, update Container Apps
 
-Triggered on every push to `main`. Uses OIDC federated credentials (no stored secrets for Azure auth).
+Triggered on push to `main` or manual `workflow_dispatch`. Uses OIDC federated credentials (no stored secrets for Azure auth).
 
 ## Worker Service
 
@@ -117,11 +117,11 @@ Monitors 7 major USD pairs across 6 timeframes for new supply/demand zones.
 | D    | W     |
 
 Features:
-- **Multi-timeframe processing** — processes all 6 timeframes each cycle, running higher TFs only when their candle closes
+- **Multi-timeframe processing** — processes all 6 timeframes each cycle, running higher TFs only when their candle closes; seeds all timeframes on first cycle
 - **Incremental candle caching** — 2000-candle sliding window, fetches only new candles after initial load
 - **Zone persistence** — Azure Table Storage (prod) / in-memory (dev) with zones + trend stored per instrument/granularity
 - **Change detection** — only alerts on genuinely new zones
-- **Email notifications** — Azure Communication Services (prod) / console (dev)
+- **Email notifications** — H1 timeframe only, via Azure Communication Services (prod) / console (dev)
 - **Trend context** — swing-based trend detection (Higher Highs/Higher Lows) stored alongside zones
 - **Configurable** — instruments, timeframe pairs, poll interval, zone configuration all via appsettings
 

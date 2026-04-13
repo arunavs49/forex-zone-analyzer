@@ -404,7 +404,7 @@ Main Menu
 | Area | Current State | What's Needed |
 |------|---------------|---------------|
 | **Caching** | ✅ Worker has `CandleCacheService` (2000 sliding window) | `CachedInstrument` in DataProvider is still a no-op; consider unifying |
-| **Notifications** | ✅ ACS Email + Push (Azure Notification Hubs) + console fallback in Worker | Add more channels (SMS, Telegram) |
+| **Notifications** | ✅ ACS Email (H1 zones only) + console fallback in Worker | Add more channels (SMS, Telegram) |
 | **Backtesting** | None | Build historical simulation engine using cached candle data |
 | **Trade Setup** | Manual via console prompts | Automate: detect zone + trend → generate trade parameters |
 | **Configuration** | ✅ Worker uses `appsettings.json` + env vars; MCP uses Key Vault | Playground still uses console prompts |
@@ -466,7 +466,7 @@ var trend = TrendManager.Create(candles);
 ```
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml                      # CI/CD: test → deploy (Bicep + ACR + Container Apps)
+│       └── deploy.yml                      # CI/CD: test → deploy (push to main + workflow_dispatch)
 ├── infra/
 │   ├── main.bicep                          # Subscription-level orchestrator
 │   └── modules/
@@ -572,7 +572,7 @@ var trend = TrendManager.Create(candles);
 6. ~~**EOL framework**~~ — ✅ Upgraded to .NET 10
 7. ~~**RestSharp vulnerability**~~ — ✅ Upgraded to RestSharp 112.1.0
 8. ~~**No caching**~~ — ✅ Worker has `CandleCacheService` with 2000-candle sliding window + incremental fetching
-9. ~~**No notifications**~~ — ✅ ACS Email notifications in Worker (HTML + plain text), push notifications via Azure Notification Hubs to iOS app, console fallback in dev
+9. ~~**No notifications**~~ — ✅ ACS Email notifications in Worker (H1 zones only, HTML + plain text), iOS app polls stored zones from Table Storage via `get_stored_zones` MCP tool, console fallback in dev
 10. ~~**No configuration**~~ — ✅ Worker uses `appsettings.json` + environment variables; MCP server uses Key Vault
 11. ~~**Secret management**~~ — ✅ Azure Key Vault for OANDA token; Container App secrets for ACS connection string
 12. ~~**TrendManager fragility**~~ — ✅ Rewritten with swing-based detection; returns `TrendDirection` enum, handles edge cases (< 2 candles → Sideways), configurable via `TrendConfiguration`
