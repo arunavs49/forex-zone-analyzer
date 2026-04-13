@@ -7,6 +7,7 @@ public class InMemoryZoneStore : IZoneStore
 {
     private readonly ConcurrentDictionary<string, List<Zone>> _store = new();
     private readonly ConcurrentDictionary<string, string> _trends = new();
+    private readonly ConcurrentDictionary<string, DateTime> _updatedAt = new();
 
     public Task<List<Zone>> GetZonesAsync(string instrument, string granularity, CancellationToken cancellationToken)
     {
@@ -19,6 +20,7 @@ public class InMemoryZoneStore : IZoneStore
     {
         var key = $"{instrument}_{granularity}";
         _store[key] = new List<Zone>(zones);
+        _updatedAt[key] = DateTime.UtcNow;
         return Task.CompletedTask;
     }
 
@@ -34,5 +36,12 @@ public class InMemoryZoneStore : IZoneStore
         var key = $"{instrument}_{granularity}";
         _trends[key] = trend;
         return Task.CompletedTask;
+    }
+
+    public Task<DateTime?> GetLastUpdatedAsync(string instrument, string granularity, CancellationToken cancellationToken)
+    {
+        var key = $"{instrument}_{granularity}";
+        DateTime? result = _updatedAt.TryGetValue(key, out var dt) ? dt : null;
+        return Task.FromResult(result);
     }
 }

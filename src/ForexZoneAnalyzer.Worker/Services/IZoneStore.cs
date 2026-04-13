@@ -8,4 +8,5 @@ public interface IZoneStore
     Task UpsertZonesAsync(string instrument, string granularity, List<Zone> zones, CancellationToken cancellationToken);
     Task<string?> GetTrendAsync(string instrument, string granularity, CancellationToken cancellationToken);
     Task UpsertTrendAsync(string instrument, string granularity, string trend, CancellationToken cancellationToken);
+    Task<DateTime?> GetLastUpdatedAsync(string instrument, string granularity, CancellationToken cancellationToken);
 }

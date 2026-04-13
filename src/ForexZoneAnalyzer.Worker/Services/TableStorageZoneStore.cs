@@ -97,6 +97,27 @@ public class TableStorageZoneStore : IZoneStore
         return null;
     }
 
+    public async Task<DateTime?> GetLastUpdatedAsync(string instrument, string granularity, CancellationToken cancellationToken)
+    {
+        var partitionKey = $"{instrument}_{granularity}";
+        var rowKey = "_trend_";
+
+        try
+        {
+            var response = await _tableClient.GetEntityIfExistsAsync<TableEntity>(partitionKey, rowKey, cancellationToken: cancellationToken);
+            if (response.HasValue)
+            {
+                return response.Value?.GetDateTime("UpdatedAt");
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Table Storage last-updated query failed for {Partition}", partitionKey);
+        }
+
+        return null;
+    }
+
     public async Task UpsertTrendAsync(string instrument, string granularity, string trend, CancellationToken cancellationToken)
     {
         var partitionKey = $"{instrument}_{granularity}";

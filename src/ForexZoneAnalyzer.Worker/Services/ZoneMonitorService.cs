@@ -92,17 +92,31 @@ public class ZoneMonitorService : BackgroundService
 
             try
             {
-                // Determine which timeframes are due this cycle
-                var dueTimeframes = timeframePairs.Where(tf =>
-                    firstCycle || ShouldProcessTimeframe(cycleStart, GetGranularityMinutes(tf.Zone), intervalMinutes)
-                ).ToArray();
+                // On first cycle, check storage freshness to skip timeframes
+                // that were already processed recently (e.g. after a restart).
+                // On subsequent cycles, use candle-alignment gating.
+                var dueTimeframes = firstCycle
+                    ? await GetStaleTimeframesAsync(instruments[0], timeframePairs, cycleStart, stoppingToken)
+                    : timeframePairs.Where(tf =>
+                        ShouldProcessTimeframe(cycleStart, GetGranularityMinutes(tf.Zone), intervalMinutes)
+                      ).ToArray();
 
-                // Process all instruments in parallel
-                var tasks = instruments.Select(instrument =>
-                    ProcessInstrumentAllTimeframesAsync(instrument, dueTimeframes, stoppingToken)
-                ).ToArray();
+                if (dueTimeframes.Length > 0)
+                {
+                    var tfNames = string.Join(", ", dueTimeframes.Select(tf => tf.ZoneStr));
+                    _logger.LogInformation("Processing {Count} timeframes this cycle: [{Timeframes}]",
+                        dueTimeframes.Length, tfNames);
 
-                await Task.WhenAll(tasks);
+                    var tasks = instruments.Select(instrument =>
+                        ProcessInstrumentAllTimeframesAsync(instrument, dueTimeframes, stoppingToken)
+                    ).ToArray();
+
+                    await Task.WhenAll(tasks);
+                }
+                else
+                {
+                    _logger.LogDebug("No timeframes due this cycle");
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -149,6 +163,41 @@ public class ZoneMonitorService : BackgroundService
     }
 
     /// <summary>
+    /// Checks storage freshness for each timeframe and returns only those
+    /// that are stale (no stored data, or last update is older than the candle interval).
+    /// Used on first cycle after restart to avoid redundant OANDA calls.
+    /// </summary>
+    private async Task<(CandlestickGranularity Zone, CandlestickGranularity Trend, string ZoneStr, string TrendStr)[]>
+        GetStaleTimeframesAsync(
+            InstrumentName sampleInstrument,
+            (CandlestickGranularity Zone, CandlestickGranularity Trend, string ZoneStr, string TrendStr)[] allTimeframes,
+            DateTime utcNow,
+            CancellationToken cancellationToken)
+    {
+        var stale = new List<(CandlestickGranularity Zone, CandlestickGranularity Trend, string ZoneStr, string TrendStr)>();
+
+        foreach (var tf in allTimeframes)
+        {
+            var lastUpdated = await _zoneStore.GetLastUpdatedAsync(
+                sampleInstrument.ToString(), tf.ZoneStr, cancellationToken);
+
+            var candleMinutes = GetGranularityMinutes(tf.Zone);
+
+            if (lastUpdated == null || (utcNow - lastUpdated.Value).TotalMinutes >= candleMinutes)
+            {
+                stale.Add(tf);
+                _logger.LogDebug("Timeframe {TF} is stale (last updated: {LastUpdated})", tf.ZoneStr,
+                    lastUpdated?.ToString("yyyy-MM-dd HH:mm") ?? "never");
+            }
+            else
+            {
+                _logger.LogInformation("Skipping {TF} on restart — still fresh (updated {Ago:N0} min ago)",
+                    tf.ZoneStr, (utcNow - lastUpdated.Value).TotalMinutes);
+            }
+        }
+
+        return stale.ToArray();
+    }
     /// Determines whether a timeframe should be processed in the current cycle.
     /// A timeframe is due when the current time aligns with its candle interval.
     /// </summary>
