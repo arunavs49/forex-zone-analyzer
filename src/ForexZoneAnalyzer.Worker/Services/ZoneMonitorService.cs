@@ -66,6 +66,7 @@ public class ZoneMonitorService : BackgroundService
             initialDelay, DateTime.UtcNow + initialDelay);
         await Task.Delay(initialDelay, stoppingToken);
 
+        var firstCycle = true;
         while (!stoppingToken.IsCancellationRequested)
         {
             var cycleStart = DateTime.UtcNow;
@@ -76,9 +77,10 @@ public class ZoneMonitorService : BackgroundService
                 {
                     foreach (var tf in timeframePairs)
                     {
-                        // Only process this timeframe if its candle has closed since last cycle
+                        // Process all timeframes on first cycle to seed data;
+                        // afterwards only when the candle has closed since last cycle
                         var tfMinutes = GetGranularityMinutes(tf.Zone);
-                        if (ShouldProcessTimeframe(cycleStart, tfMinutes, intervalMinutes))
+                        if (firstCycle || ShouldProcessTimeframe(cycleStart, tfMinutes, intervalMinutes))
                         {
                             await ProcessInstrumentAsync(instrument, tf.Zone, tf.Trend, tf.ZoneStr, stoppingToken);
                         }
@@ -97,6 +99,7 @@ public class ZoneMonitorService : BackgroundService
             var delay = GetDelayUntilNextSlot(DateTime.UtcNow, intervalMinutes);
             _logger.LogInformation("Cycle complete. Next poll at {NextRun:HH:mm:ss} UTC (in {Delay})",
                 DateTime.UtcNow + delay, delay);
+            firstCycle = false;
             await Task.Delay(delay, stoppingToken);
         }
 
