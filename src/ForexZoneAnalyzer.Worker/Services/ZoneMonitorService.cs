@@ -189,19 +189,12 @@ public class ZoneMonitorService : BackgroundService
 
             var candleMinutes = GetGranularityMinutes(tf.Zone);
 
-            // If UpdatedAt is missing (legacy entity), don't treat as stale —
-            // defer to normal candle-alignment gating on subsequent cycles.
-            if (lastUpdated == null)
-            {
-                _logger.LogDebug("Timeframe {TF} has no UpdatedAt — deferring to candle-alignment gating", tf.ZoneStr);
-                continue;
-            }
-
-            if ((utcNow - lastUpdated.Value).TotalMinutes >= candleMinutes)
+            // null = never processed or legacy entity without UpdatedAt → treat as stale
+            if (lastUpdated == null || (utcNow - lastUpdated.Value).TotalMinutes >= candleMinutes)
             {
                 stale.Add(tf);
                 _logger.LogDebug("Timeframe {TF} is stale (last updated: {LastUpdated})", tf.ZoneStr,
-                    lastUpdated.Value.ToString("yyyy-MM-dd HH:mm"));
+                    lastUpdated?.ToString("yyyy-MM-dd HH:mm") ?? "never");
             }
             else
             {
