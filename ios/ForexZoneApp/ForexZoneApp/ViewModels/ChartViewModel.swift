@@ -63,7 +63,8 @@ class ChartViewModel: ObservableObject {
 
     /// List-visible zones: untested/tested within 1000 pips of price + latest 10 (any freshness)
     var visibleZones: [Zone] {
-        let pipMultiplier: Double = (currentPrice ?? 0) > 10 ? 100 : 10000
+        let isJpy = instrument.rawValue.contains("JPY")
+        let pipMultiplier: Double = isJpy ? 100 : 10000
         let maxPipDistance: Double = 1000
 
         // Untested/Tested within 1000 pips of current price
