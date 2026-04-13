@@ -31,15 +31,62 @@ class ChartViewModel: ObservableObject {
         allZones.filter { $0.freshness != .Broken }
     }
 
-    /// Visible zones: all untested/tested + up to 10 most recent (any state)
+    // MARK: - Chart zones (only zones whose formation overlaps loaded candles)
+
+    private var candleTimeRange: (start: Date, end: Date)? {
+        guard let first = candles.first?.date,
+              let last = candles.last?.date else { return nil }
+        return (first, last)
+    }
+
+    private func zonesInCandleRange(_ zones: [Zone]) -> [Zone] {
+        guard let range = candleTimeRange else { return [] }
+        return zones.filter { zone in
+            guard let zoneStart = zone.startDate else { return false }
+            return zoneStart >= range.start && zoneStart <= range.end
+        }
+    }
+
+    var chartSupplyZones: [Zone] {
+        zonesInCandleRange(supplyZones).filter { $0.freshness != .Broken }
+    }
+
+    var chartDemandZones: [Zone] {
+        zonesInCandleRange(demandZones).filter { $0.freshness != .Broken }
+    }
+
+    // MARK: - List zones (untested/tested within 1000 pips + newest 10)
+
+    private var currentPrice: Double? {
+        candles.last?.close
+    }
+
+    /// List-visible zones: untested/tested within 1000 pips of price + latest 10 (any freshness)
     var visibleZones: [Zone] {
-        let untestedTested = allZones.filter { $0.freshness != .Broken }
+        let pipMultiplier: Double = (currentPrice ?? 0) > 10 ? 100 : 10000
+        let maxPipDistance: Double = 1000
+
+        // Untested/Tested within 1000 pips of current price
+        let nearbyActive: [Zone]
+        if let price = currentPrice {
+            nearbyActive = allZones.filter { zone in
+                guard zone.freshness != .Broken else { return false }
+                let midPrice = (zone.baseRangeHigh + zone.baseRangeLow) / 2
+                let pipsAway = abs(midPrice - price) * pipMultiplier
+                return pipsAway <= maxPipDistance
+            }
+        } else {
+            nearbyActive = allZones.filter { $0.freshness != .Broken }
+        }
+
+        // Latest 10 zones by start time (any freshness)
         let sortedByTime = allZones.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
         let recent10 = Array(sortedByTime.prefix(10))
+
         // Union by id
         var seen = Set<String>()
         var result: [Zone] = []
-        for zone in untestedTested + recent10 {
+        for zone in nearbyActive + recent10 {
             if seen.insert(zone.id).inserted {
                 result.append(zone)
             }
