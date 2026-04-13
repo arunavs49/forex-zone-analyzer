@@ -20,7 +20,7 @@ struct ZoneListView: View {
                             dismiss()
                             onZoneTapped?(zone)
                         } label: {
-                            ZoneRow(zone: zone, color: .red)
+                            ZoneRow(zone: zone, color: .red, instrument: instrument)
                         }
                         .buttonStyle(.plain)
                     }
@@ -36,7 +36,7 @@ struct ZoneListView: View {
                             dismiss()
                             onZoneTapped?(zone)
                         } label: {
-                            ZoneRow(zone: zone, color: .green)
+                            ZoneRow(zone: zone, color: .green, instrument: instrument)
                         }
                         .buttonStyle(.plain)
                     }
@@ -56,6 +56,7 @@ struct ZoneListView: View {
 struct ZoneRow: View {
     let zone: Zone
     let color: Color
+    let instrument: Instrument
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -158,7 +159,8 @@ struct ZoneRow: View {
     }
 
     private func formatPips(_ value: Double) -> String {
-        let pips = value * 10000
+        let pipMultiplier: Double = instrument.rawValue.contains("JPY") ? 100 : 10000
+        let pips = value * pipMultiplier
         return String(format: "%.1f pips", pips)
     }
 }
