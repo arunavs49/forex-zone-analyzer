@@ -210,8 +210,8 @@ public class ZoneMonitorService : BackgroundService
                 freshZones.Count(z => z.Type == ZoneType.Demand),
                 trend);
 
-            // 7. Send notifications for new zones that are not broken
-            if (newZones.Count > 0)
+            // 7. Send notifications only for H1 timeframe new zones that are not broken
+            if (newZones.Count > 0 && zoneGranularity == CandlestickGranularity.H1)
             {
                 var activeNewZones = newZones.Where(z => z.Freshness != ZoneFreshness.Broken).ToList();
                 _logger.LogInformation("{Instrument} {Granularity}: {Active} active new zones (skipped {Broken} broken)",
