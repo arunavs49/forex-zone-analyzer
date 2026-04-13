@@ -63,13 +63,19 @@ public class ZoneMonitorService : BackgroundService
             .Select(i => Enum.Parse<InstrumentName>(i, ignoreCase: true))
             .ToArray();
 
-        // Parse all timeframe pairs
-        var timeframePairs = _monitorSettings.Timeframes.Select(tf => (
-            Zone: Enum.Parse<CandlestickGranularity>(tf.ZoneGranularity, ignoreCase: true),
-            Trend: Enum.Parse<CandlestickGranularity>(tf.TrendGranularity, ignoreCase: true),
-            ZoneStr: tf.ZoneGranularity,
-            TrendStr: tf.TrendGranularity
-        )).ToArray();
+        // Parse all timeframe pairs, deduplicating by zone granularity
+        var timeframePairs = _monitorSettings.Timeframes
+            .GroupBy(tf => tf.ZoneGranularity, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .Select(tf => (
+                Zone: Enum.Parse<CandlestickGranularity>(tf.ZoneGranularity, ignoreCase: true),
+                Trend: Enum.Parse<CandlestickGranularity>(tf.TrendGranularity, ignoreCase: true),
+                ZoneStr: tf.ZoneGranularity,
+                TrendStr: tf.TrendGranularity
+            )).ToArray();
+
+        _logger.LogInformation("Loaded {Count} timeframe pairs from config (raw config had {RawCount} entries)",
+            timeframePairs.Length, _monitorSettings.Timeframes.Length);
 
         // Poll interval is the smallest zone granularity
         var intervalMinutes = timeframePairs.Min(tf => GetGranularityMinutes(tf.Zone));
