@@ -4,6 +4,7 @@ using GeriRemenyi.Oanda.V20.Client.Model;
 using GeriRemenyi.Oanda.V20.Sdk.Trade;
 using ModelContextProtocol.Server;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace ForexZoneAnalyzer.McpServer.Tools;
 
@@ -113,9 +114,23 @@ public sealed class TradeTools
         CancellationToken cancellationToken)
     {
         var connection = await connectionService.GetConnectionAsync(cancellationToken);
-        var response = await connection.OrderApi.GetPendingOrdersAsync(accountId);
+        // Use WithHttpInfo to get the raw JSON from OANDA, which preserves all subtype fields
+        // (instrument, price, units, stopLossOnFill, takeProfitOnFill, etc.) that are lost
+        // when deserialising into the base List<Order> type.
+        var response = await connection.OrderApi.GetPendingOrdersAsyncWithHttpInfo(accountId);
+        var raw = response?.RawContent;
 
-        return JsonConvert.SerializeObject(response?.Orders ?? [], Formatting.Indented);
+        if (string.IsNullOrEmpty(raw)) return "[]";
+
+        // OANDA returns { "orders": [...], "lastTransactionID": "..." }
+        // Handle both the envelope object and a bare array (e.g. from mocks)
+        var token = JToken.Parse(raw);
+        return token switch
+        {
+            JArray arr => arr.ToString(Formatting.Indented),
+            JObject obj => (obj["orders"] ?? new JArray()).ToString(Formatting.Indented),
+            _ => "[]"
+        };
     }
 
     [McpServerTool(Name = "get_orders"), Description("List all orders for an account. Optionally filter by state: 'PENDING', 'FILLED', 'TRIGGERED', 'CANCELLED'. Leave state empty to return all orders.")]

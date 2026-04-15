@@ -1,6 +1,7 @@
 using ForexZoneAnalyzer.McpServer.Services;
 using ForexZoneAnalyzer.McpServer.Tools;
 using GeriRemenyi.Oanda.V20.Client.Api;
+using GeriRemenyi.Oanda.V20.Client.Client;
 using GeriRemenyi.Oanda.V20.Client.Model;
 using GeriRemenyi.Oanda.V20.Sdk;
 using GeriRemenyi.Oanda.V20.Sdk.Account;
@@ -279,9 +280,13 @@ public class TradeToolsTests
     public async Task GetPendingOrders_ReturnsOrderList()
     {
         var orders = new List<Order> { new Order(id: 42, state: OrderState.PENDING) };
+        var rawJson = $"{{\"orders\":{JsonConvert.SerializeObject(orders)},\"lastTransactionID\":\"1\"}}";
         _orderApiMock
-            .Setup(x => x.GetPendingOrdersAsync("test-account", null))
-            .ReturnsAsync(new PendingOrdersResponse(orders: orders));
+            .Setup(x => x.GetPendingOrdersAsyncWithHttpInfo("test-account", null))
+            .ReturnsAsync(new ApiResponse<PendingOrdersResponse>(
+                System.Net.HttpStatusCode.OK,
+                new PendingOrdersResponse(orders: orders),
+                rawJson));
 
         var result = await TradeTools.GetPendingOrders(
             _connectionServiceMock.Object, "test-account", CancellationToken.None);
@@ -292,9 +297,13 @@ public class TradeToolsTests
     [Fact]
     public async Task GetPendingOrders_EmptyList_ReturnsEmptyArray()
     {
+        var rawJson = "{\"orders\":[],\"lastTransactionID\":\"1\"}";
         _orderApiMock
-            .Setup(x => x.GetPendingOrdersAsync("test-account", null))
-            .ReturnsAsync(new PendingOrdersResponse(orders: []));
+            .Setup(x => x.GetPendingOrdersAsyncWithHttpInfo("test-account", null))
+            .ReturnsAsync(new ApiResponse<PendingOrdersResponse>(
+                System.Net.HttpStatusCode.OK,
+                new PendingOrdersResponse(orders: []),
+                rawJson));
 
         var result = await TradeTools.GetPendingOrders(
             _connectionServiceMock.Object, "test-account", CancellationToken.None);
