@@ -17,6 +17,7 @@ public class TradeToolsTests
     private readonly Mock<IAccount> _accountMock;
     private readonly Mock<ITrades> _tradesMock;
     private readonly Mock<ITradeApi> _tradeApiMock;
+    private readonly Mock<IOrderApi> _orderApiMock;
 
     public TradeToolsTests()
     {
@@ -25,6 +26,7 @@ public class TradeToolsTests
         _accountMock = new Mock<IAccount>();
         _tradesMock = new Mock<ITrades>();
         _tradeApiMock = new Mock<ITradeApi>();
+        _orderApiMock = new Mock<IOrderApi>();
 
         _connectionServiceMock
             .Setup(x => x.GetConnectionAsync(It.IsAny<CancellationToken>()))
@@ -36,6 +38,7 @@ public class TradeToolsTests
 
         _accountMock.Setup(x => x.Trades).Returns(_tradesMock.Object);
         _connectionMock.Setup(x => x.TradeApi).Returns(_tradeApiMock.Object);
+        _connectionMock.Setup(x => x.OrderApi).Returns(_orderApiMock.Object);
     }
 
     [Fact]
@@ -175,5 +178,170 @@ public class TradeToolsTests
             "test-account",
             "12345",
             It.Is<CloseTradeRequest>(r => r.Units == "500")), Times.Once);
+    }
+
+    [Fact]
+    public async Task PlaceLimitOrder_Long_CallsOrderApiWithCorrectParameters()
+    {
+        var response = new CreateOrderResponse();
+        _orderApiMock
+            .Setup(x => x.CreateOrderAsync(It.IsAny<string>(), It.IsAny<CreateOrderRequest>()))
+            .ReturnsAsync(response);
+
+        await TradeTools.PlaceLimitOrder(
+            _connectionServiceMock.Object,
+            "test-account",
+            "EUR_USD",
+            "Long",
+            entryPrice: 1.08500,
+            stopLossPips: 20,
+            takeProfitPips: 40,
+            units: 1000,
+            CancellationToken.None);
+
+        _orderApiMock.Verify(x => x.CreateOrderAsync(
+            "test-account",
+            It.IsAny<CreateOrderRequest>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PlaceLimitOrder_Short_CallsOrderApiWithCorrectParameters()
+    {
+        var response = new CreateOrderResponse();
+        _orderApiMock
+            .Setup(x => x.CreateOrderAsync(It.IsAny<string>(), It.IsAny<CreateOrderRequest>()))
+            .ReturnsAsync(response);
+
+        await TradeTools.PlaceLimitOrder(
+            _connectionServiceMock.Object,
+            "test-account",
+            "GBP_USD",
+            "Short",
+            entryPrice: 1.27000,
+            stopLossPips: 15,
+            takeProfitPips: 30,
+            units: 500,
+            CancellationToken.None);
+
+        _orderApiMock.Verify(x => x.CreateOrderAsync(
+            "test-account",
+            It.IsAny<CreateOrderRequest>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PlaceLimitOrder_JpyPair_UsesCorrectPipSize()
+    {
+        var response = new CreateOrderResponse();
+        _orderApiMock
+            .Setup(x => x.CreateOrderAsync(It.IsAny<string>(), It.IsAny<CreateOrderRequest>()))
+            .ReturnsAsync(response);
+
+        await TradeTools.PlaceLimitOrder(
+            _connectionServiceMock.Object,
+            "test-account",
+            "USD_JPY",
+            "Long",
+            entryPrice: 150.000,
+            stopLossPips: 20,
+            takeProfitPips: 40,
+            units: 1000,
+            CancellationToken.None);
+
+        _orderApiMock.Verify(x => x.CreateOrderAsync(
+            "test-account",
+            It.IsAny<CreateOrderRequest>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PlaceLimitOrder_ReturnsJsonResponse()
+    {
+        var response = new CreateOrderResponse();
+        _orderApiMock
+            .Setup(x => x.CreateOrderAsync(It.IsAny<string>(), It.IsAny<CreateOrderRequest>()))
+            .ReturnsAsync(response);
+
+        var result = await TradeTools.PlaceLimitOrder(
+            _connectionServiceMock.Object,
+            "test-account",
+            "EUR_USD",
+            "Long",
+            entryPrice: 1.08500,
+            stopLossPips: 20,
+            takeProfitPips: 40,
+            units: 1000,
+            CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.True(result.Length > 0);
+    }
+
+    [Fact]
+    public async Task GetPendingOrders_ReturnsOrderList()
+    {
+        var orders = new List<Order> { new Order(id: 42, state: OrderState.PENDING) };
+        _orderApiMock
+            .Setup(x => x.GetPendingOrdersAsync("test-account", null))
+            .ReturnsAsync(new PendingOrdersResponse(orders: orders));
+
+        var result = await TradeTools.GetPendingOrders(
+            _connectionServiceMock.Object, "test-account", CancellationToken.None);
+
+        Assert.Contains("42", result);
+    }
+
+    [Fact]
+    public async Task GetPendingOrders_EmptyList_ReturnsEmptyArray()
+    {
+        _orderApiMock
+            .Setup(x => x.GetPendingOrdersAsync("test-account", null))
+            .ReturnsAsync(new PendingOrdersResponse(orders: []));
+
+        var result = await TradeTools.GetPendingOrders(
+            _connectionServiceMock.Object, "test-account", CancellationToken.None);
+
+        Assert.Equal("[]", result.Trim());
+    }
+
+    [Fact]
+    public async Task GetOrders_NoFilter_CallsApiWithNullState()
+    {
+        _orderApiMock
+            .Setup(x => x.GetOrdersAsync("test-account", null, null, null, null, null, null))
+            .ReturnsAsync(new OrdersResponse(orders: []));
+
+        var result = await TradeTools.GetOrders(
+            _connectionServiceMock.Object, "test-account", cancellationToken: CancellationToken.None);
+
+        _orderApiMock.Verify(x => x.GetOrdersAsync(
+            "test-account", null, null, null, null, null, null), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOrders_WithPendingFilter_PassesStateToApi()
+    {
+        _orderApiMock
+            .Setup(x => x.GetOrdersAsync("test-account", null, null, "PENDING", null, null, null))
+            .ReturnsAsync(new OrdersResponse(orders: []));
+
+        await TradeTools.GetOrders(
+            _connectionServiceMock.Object, "test-account", state: "PENDING", cancellationToken: CancellationToken.None);
+
+        _orderApiMock.Verify(x => x.GetOrdersAsync(
+            "test-account", null, null, "PENDING", null, null, null), Times.Once);
+    }
+
+    [Fact]
+    public async Task CancelOrder_CallsApiWithCorrectOrderId()
+    {
+        _orderApiMock
+            .Setup(x => x.CancelOrderAsync("test-account", "99", null, null))
+            .ReturnsAsync(new CancelOrderResponse());
+
+        var result = await TradeTools.CancelOrder(
+            _connectionServiceMock.Object, "test-account", "99", CancellationToken.None);
+
+        _orderApiMock.Verify(x => x.CancelOrderAsync(
+            "test-account", "99", null, null), Times.Once);
+        Assert.NotNull(result);
     }
 }

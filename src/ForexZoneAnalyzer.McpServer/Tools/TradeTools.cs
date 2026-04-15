@@ -56,6 +56,94 @@ public sealed class TradeTools
         return JsonConvert.SerializeObject(response, Formatting.Indented);
     }
 
+    [McpServerTool(Name = "place_limit_order"), Description("Place a limit order at a specific entry price with fixed stop loss and take profit. WARNING: This creates a real pending order with real money.")]
+    public static async Task<string> PlaceLimitOrder(
+        IOandaConnectionService connectionService,
+        [Description("The OANDA account ID")] string accountId,
+        [Description("Instrument name (e.g. 'EUR_USD', 'GBP_JPY')")] string instrument,
+        [Description("Trade direction: 'Long' (buy) or 'Short' (sell)")] string direction,
+        [Description("Limit entry price at which the order will be filled")] double entryPrice,
+        [Description("Stop loss distance in pips from the entry price")] int stopLossPips,
+        [Description("Take profit distance in pips from the entry price")] int takeProfitPips,
+        [Description("Number of units to trade (position size)")] long units,
+        CancellationToken cancellationToken)
+    {
+        var instrumentName = Enum.Parse<InstrumentName>(instrument, ignoreCase: true);
+        var tradeDirection = Enum.Parse<TradeDirection>(direction, ignoreCase: true);
+
+        var pipSize = ResolveInstrumentPipSize(instrumentName);
+        var directionMultiplier = tradeDirection == TradeDirection.Long ? 1 : -1;
+        var signedUnits = units * directionMultiplier;
+
+        var stopLossPrice = Math.Round(entryPrice - directionMultiplier * stopLossPips * pipSize, 5);
+        var takeProfitPrice = Math.Round(entryPrice + directionMultiplier * takeProfitPips * pipSize, 5);
+
+        var stopLoss = new StopLossDetails(price: stopLossPrice);
+        var takeProfit = new TakeProfitDetails(price: takeProfitPrice);
+
+        var connection = await connectionService.GetConnectionAsync(cancellationToken);
+        var response = await connection.OrderApi.CreateOrderAsync(accountId, new CreateOrderRequest(new
+        {
+            Type = "LIMIT",
+            Instrument = instrumentName.ToString(),
+            Units = signedUnits.ToString(),
+            Price = entryPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture),
+            StopLossOnFill = new { Price = stopLossPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture) },
+            TakeProfitOnFill = new { Price = takeProfitPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture) }
+        }));
+
+        return JsonConvert.SerializeObject(response, Formatting.Indented);
+    }
+
+    private static double ResolveInstrumentPipSize(InstrumentName instrument)
+    {
+        return instrument switch
+        {
+            InstrumentName.USD_JPY or InstrumentName.EUR_JPY or InstrumentName.GBP_JPY
+                or InstrumentName.AUD_JPY or InstrumentName.CAD_JPY or InstrumentName.CHF_JPY
+                or InstrumentName.NZD_JPY => 0.01,
+            _ => 0.0001
+        };
+    }
+
+    [McpServerTool(Name = "get_pending_orders"), Description("List all pending (unfilled) orders for an account, including limit and stop orders waiting to be triggered.")]
+    public static async Task<string> GetPendingOrders(
+        IOandaConnectionService connectionService,
+        [Description("The OANDA account ID")] string accountId,
+        CancellationToken cancellationToken)
+    {
+        var connection = await connectionService.GetConnectionAsync(cancellationToken);
+        var response = await connection.OrderApi.GetPendingOrdersAsync(accountId);
+
+        return JsonConvert.SerializeObject(response?.Orders ?? [], Formatting.Indented);
+    }
+
+    [McpServerTool(Name = "get_orders"), Description("List all orders for an account. Optionally filter by state: 'PENDING', 'FILLED', 'TRIGGERED', 'CANCELLED'. Leave state empty to return all orders.")]
+    public static async Task<string> GetOrders(
+        IOandaConnectionService connectionService,
+        [Description("The OANDA account ID")] string accountId,
+        [Description("Optional order state filter: 'PENDING', 'FILLED', 'TRIGGERED', 'CANCELLED'. Leave empty for all.")] string? state = null,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = await connectionService.GetConnectionAsync(cancellationToken);
+        var response = await connection.OrderApi.GetOrdersAsync(accountId, state: string.IsNullOrWhiteSpace(state) ? null : state);
+
+        return JsonConvert.SerializeObject(response?.Orders ?? [], Formatting.Indented);
+    }
+
+    [McpServerTool(Name = "cancel_order"), Description("Cancel a pending order by its order ID. WARNING: This cancels a real pending order.")]
+    public static async Task<string> CancelOrder(
+        IOandaConnectionService connectionService,
+        [Description("The OANDA account ID")] string accountId,
+        [Description("The order ID to cancel")] string orderId,
+        CancellationToken cancellationToken)
+    {
+        var connection = await connectionService.GetConnectionAsync(cancellationToken);
+        var response = await connection.OrderApi.CancelOrderAsync(accountId, orderId);
+
+        return JsonConvert.SerializeObject(response, Formatting.Indented);
+    }
+
     [McpServerTool(Name = "close_trade"), Description("Close an existing open trade. WARNING: This closes a real trade.")]
     public static async Task<string> CloseTrade(
         IOandaConnectionService connectionService,
