@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 /// Confirmation sheet for placing a zone-derived limit order.
 struct PlaceOrderSheet: View {
@@ -111,14 +112,14 @@ struct PlaceOrderSheet: View {
                 }
             }
 
-            if let msg = resultMessage {
+            if isError, let msg = resultMessage {
                 Section {
                     HStack(spacing: 8) {
-                        Image(systemName: isError ? "xmark.circle.fill" : "checkmark.circle.fill")
-                            .foregroundStyle(isError ? .red : .green)
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.red)
                         Text(msg)
                             .font(.callout)
-                            .foregroundStyle(isError ? .red : .primary)
+                            .foregroundStyle(.red)
                     }
                 }
             }
@@ -171,22 +172,43 @@ struct PlaceOrderSheet: View {
             )
 
             // Parse order ID from response JSON if present
+            var orderId: String = ""
             if let data = response.data(using: .utf8),
                let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let orderFill = dict["orderCreateTransaction"] as? [String: Any],
-               let orderId = orderFill["id"] {
-                resultMessage = "Order placed — ID: \(orderId)"
-            } else {
-                resultMessage = "Order placed successfully"
+               let id = orderFill["id"] {
+                orderId = "\(id)"
             }
+
             isError = false
+            isPlacing = false
+
+            // Fire local notification then dismiss
+            sendTradeNotification(params: params, orderId: orderId)
+            try? await Task.sleep(for: .milliseconds(300))
+            dismiss()
 
         } catch {
             resultMessage = error.localizedDescription
             isError = true
+            isPlacing = false
         }
+    }
 
-        isPlacing = false
+    private func sendTradeNotification(params: ZoneOrderParameters, orderId: String) {
+        let content = UNMutableNotificationContent()
+        let pair = instrument.rawValue.replacingOccurrences(of: "_", with: "/")
+        content.title = "Order Placed — \(params.direction) \(pair)"
+        content.subtitle = orderId.isEmpty ? "Limit order submitted" : "Order ID: \(orderId)"
+        content.body = "Entry \(formatPrice(params.entryPrice)) · SL \(params.stopLossPips)p · TP \(params.takeProfitPips)p · \(params.units.formatted()) units"
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: UUID().uuidString,
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
     }
 
     private func formatPrice(_ price: Double) -> String {
