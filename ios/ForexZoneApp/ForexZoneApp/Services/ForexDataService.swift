@@ -178,6 +178,34 @@ class ForexDataService: ObservableObject {
         return []
     }
 
+    /// Fetch pending (unfilled) orders for an account
+    func fetchPendingOrders(accountId: String) async throws -> [[String: Any]] {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "get_pending_orders",
+            arguments: ["accountId": accountId]
+        )
+
+        if let data = json.data(using: .utf8),
+           let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            return array
+        }
+        return []
+    }
+
+    /// Cancel a pending order by ID
+    func cancelOrder(accountId: String, orderId: String) async throws {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        _ = try await client.callTool(
+            name: "cancel_order",
+            arguments: ["accountId": accountId, "orderId": orderId]
+        )
+    }
+
     /// Place a limit order derived from a zone's parameters
     func placeLimitOrder(
         accountId: String,
