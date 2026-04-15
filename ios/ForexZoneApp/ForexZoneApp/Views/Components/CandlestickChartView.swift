@@ -250,7 +250,17 @@ struct CandlestickChartView: View {
                         guard tapY < chartHeight else { return }
                         let price = range.max - (Double(tapY) / Double(chartHeight)) * (range.max - range.min)
                         let allZones = supplyZones + demandZones
-                        if let hit = allZones.first(where: { price >= $0.baseRangeLow && price <= $0.baseRangeHigh }) {
+                        let hits = allZones.filter { price >= $0.baseRangeLow && price <= $0.baseRangeHigh }
+                        // Prefer Untested > Tested > Broken, then most recent startDate within the same tier
+                        let freshnessRank: (ZoneFreshness) -> Int = { f in
+                            switch f { case .Untested: return 0; case .Tested: return 1; case .Broken: return 2 }
+                        }
+                        let best = hits.min { a, b in
+                            let ra = freshnessRank(a.freshness), rb = freshnessRank(b.freshness)
+                            if ra != rb { return ra < rb }
+                            return (a.startDate ?? .distantPast) > (b.startDate ?? .distantPast)
+                        }
+                        if let hit = best {
                             onZoneTapped?(hit)
                         }
                     }
