@@ -6,6 +6,7 @@ struct ChartContainerView: View {
     @StateObject private var viewModel: ChartViewModel
     @State private var showZoneList = false
     @State private var orderZone: Zone?
+    @State private var tradeZone: Zone?
 
     init(instrument: Instrument) {
         _viewModel = StateObject(wrappedValue: ChartViewModel(instrument: instrument))
@@ -125,7 +126,8 @@ struct ChartContainerView: View {
                 demandZones: viewModel.visibleDemandZones,
                 instrument: viewModel.instrument,
                 onZoneTapped: { zone in
-                    viewModel.focusedZone = zone
+                    viewModel.focusedZone = zone  // scrolls chart to zone
+                    tradeZone = zone              // shows ZoneFocusBar
                 }
             )
         }
@@ -133,14 +135,14 @@ struct ChartContainerView: View {
             PlaceOrderSheet(zone: zone, instrument: viewModel.instrument)
         }
         .safeAreaInset(edge: .bottom) {
-            if let zone = viewModel.focusedZone {
+            if let zone = tradeZone {
                 ZoneFocusBar(zone: zone, instrument: viewModel.instrument) {
                     orderZone = zone
                 } onDismiss: {
-                    viewModel.focusedZone = nil
+                    tradeZone = nil
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.spring(response: 0.3), value: viewModel.focusedZone?.id)
+                .animation(.spring(response: 0.3), value: tradeZone?.id)
             }
         }
         .task {

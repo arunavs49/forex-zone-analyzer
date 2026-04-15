@@ -164,6 +164,20 @@ class ForexDataService: ObservableObject {
         return "Unknown"
     }
 
+    /// Fetch available OANDA account IDs
+    func fetchAccounts() async throws -> [String] {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(name: "list_accounts", arguments: [:] as [String: String])
+
+        if let data = json.data(using: .utf8),
+           let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+            return array.compactMap { $0["Id"] as? String }
+        }
+        return []
+    }
+
     /// Place a limit order derived from a zone's parameters
     func placeLimitOrder(
         accountId: String,

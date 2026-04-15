@@ -5,6 +5,11 @@ struct SettingsView: View {
     @EnvironmentObject var authService: AuthService
     @Environment(\.dismiss) private var dismiss
 
+    @State private var loadedAccounts: [String] = []
+    @State private var isLoadingAccounts = false
+    @State private var accountLoadError = ""
+    private let service = ForexDataService()
+
     var body: some View {
         NavigationStack {
             Form {
@@ -85,14 +90,60 @@ struct SettingsView: View {
                 }
 
                 Section("Trading") {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("OANDA Account ID")
+                    // Account picker
+                    if loadedAccounts.isEmpty {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("OANDA Account ID")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                if settings.oandaAccountId.isEmpty {
+                                    Text("No account selected")
+                                        .foregroundStyle(.secondary)
+                                        .font(.callout)
+                                } else {
+                                    Text(settings.oandaAccountId)
+                                        .font(.system(.body, design: .monospaced))
+                                }
+                            }
+                            Spacer()
+                            Button {
+                                Task { await loadAccounts() }
+                            } label: {
+                                if isLoadingAccounts {
+                                    ProgressView().frame(width: 60)
+                                } else {
+                                    Text("Load")
+                                        .font(.callout)
+                                }
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(isLoadingAccounts || !settings.isConfigured)
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("OANDA Account ID")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Picker("Account", selection: $settings.oandaAccountId) {
+                                ForEach(loadedAccounts, id: \.self) { id in
+                                    Text(id).tag(id)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                        }
+                        if !accountLoadError.isEmpty {
+                            Text(accountLoadError)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
+
+                    if !accountLoadError.isEmpty && loadedAccounts.isEmpty {
+                        Text(accountLoadError)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
-                        TextField("e.g. 101-001-12345678-001", text: $settings.oandaAccountId)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(.red)
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -161,6 +212,26 @@ struct SettingsView: View {
         if authService.isSignedIn { return "Connected with Microsoft account" }
         if !settings.bearerToken.isEmpty { return "Using manual token" }
         return "Sign in to authenticate"
+    }
+
+    private func loadAccounts() async {
+        isLoadingAccounts = true
+        accountLoadError = ""
+        do {
+            if authService.isSignedIn {
+                try await service.configure(url: settings.mcpServerURL, tokenProvider: { await authService.getAccessToken() })
+            } else {
+                try await service.configure(url: settings.mcpServerURL, token: settings.bearerToken)
+            }
+            let accounts = try await service.fetchAccounts()
+            loadedAccounts = accounts
+            if let first = accounts.first, settings.oandaAccountId.isEmpty {
+                settings.oandaAccountId = first
+            }
+        } catch {
+            accountLoadError = error.localizedDescription
+        }
+        isLoadingAccounts = false
     }
 }
 

@@ -122,13 +122,9 @@ struct ZoneRow: View {
                     Button {
                         onPlaceOrder()
                     } label: {
-                        Label("Trade", systemImage: "chart.line.uptrend.xyaxis.circle.fill")
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(color.opacity(0.15))
+                        Image(systemName: "chart.line.uptrend.xyaxis.circle.fill")
+                            .font(.title3)
                             .foregroundStyle(color)
-                            .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
                 }
