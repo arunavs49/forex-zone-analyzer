@@ -84,8 +84,37 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Zone Alerts (Background Polling)") {
-                    Toggle("Enable zone polling", isOn: $settings.pollEnabled)
+                Section("Trading") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("OANDA Account ID")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextField("e.g. 101-001-12345678-001", text: $settings.oandaAccountId)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .font(.system(.body, design: .monospaced))
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Risk per Trade (USD)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            Slider(value: $settings.riskAmountUSD, in: 10...500, step: 10)
+                            Text("$\(Int(settings.riskAmountUSD))")
+                                .font(.system(.body, design: .monospaced))
+                                .frame(width: 52, alignment: .trailing)
+                        }
+                    }
+
+                    if settings.oandaAccountId.isEmpty {
+                        Label("Enter Account ID to enable zone order placement", systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+
+                Section("Zone Alerts (Background Polling)") {                    Toggle("Enable zone polling", isOn: $settings.pollEnabled)
 
                     if settings.pollEnabled {
                         Picker("Check interval", selection: $settings.pollIntervalMinutes) {

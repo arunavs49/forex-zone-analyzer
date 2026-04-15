@@ -163,4 +163,27 @@ class ForexDataService: ObservableObject {
         }
         return "Unknown"
     }
+
+    /// Place a limit order derived from a zone's parameters
+    func placeLimitOrder(
+        accountId: String,
+        instrument: String,
+        params: ZoneOrderParameters
+    ) async throws -> String {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        return try await client.callTool(
+            name: "place_limit_order",
+            arguments: [
+                "accountId": accountId,
+                "instrument": instrument,
+                "direction": params.direction,
+                "entryPrice": params.entryPrice,
+                "stopLossPips": params.stopLossPips,
+                "takeProfitPips": params.takeProfitPips,
+                "units": params.units
+            ]
+        )
+    }
 }

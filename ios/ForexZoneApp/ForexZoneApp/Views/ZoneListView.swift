@@ -7,6 +7,8 @@ struct ZoneListView: View {
     var onZoneTapped: ((Zone) -> Void)?
     @Environment(\.dismiss) private var dismiss
 
+    @State private var orderZone: Zone?
+
     var body: some View {
         NavigationStack {
             List {
@@ -16,13 +18,14 @@ struct ZoneListView: View {
                             .foregroundStyle(.secondary)
                     }
                     ForEach(supplyZones) { zone in
-                        Button {
+                        ZoneRow(zone: zone, color: .red, instrument: instrument) {
+                            orderZone = zone
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
                             dismiss()
                             onZoneTapped?(zone)
-                        } label: {
-                            ZoneRow(zone: zone, color: .red, instrument: instrument)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
 
@@ -32,13 +35,14 @@ struct ZoneListView: View {
                             .foregroundStyle(.secondary)
                     }
                     ForEach(demandZones) { zone in
-                        Button {
+                        ZoneRow(zone: zone, color: .green, instrument: instrument) {
+                            orderZone = zone
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
                             dismiss()
                             onZoneTapped?(zone)
-                        } label: {
-                            ZoneRow(zone: zone, color: .green, instrument: instrument)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -49,6 +53,9 @@ struct ZoneListView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .sheet(item: $orderZone) { zone in
+                PlaceOrderSheet(zone: zone, instrument: instrument)
+            }
         }
     }
 }
@@ -57,6 +64,7 @@ struct ZoneRow: View {
     let zone: Zone
     let color: Color
     let instrument: Instrument
+    var onPlaceOrder: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -108,6 +116,22 @@ struct ZoneRow: View {
                 }
 
                 Spacer()
+
+                // Place Order button
+                if let onPlaceOrder {
+                    Button {
+                        onPlaceOrder()
+                    } label: {
+                        Label("Trade", systemImage: "chart.line.uptrend.xyaxis.circle.fill")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(color.opacity(0.15))
+                            .foregroundStyle(color)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 VStack(alignment: .trailing) {
                     Text("Age")

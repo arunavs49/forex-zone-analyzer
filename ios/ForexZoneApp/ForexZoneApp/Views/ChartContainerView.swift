@@ -5,6 +5,7 @@ struct ChartContainerView: View {
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel: ChartViewModel
     @State private var showZoneList = false
+    @State private var orderZone: Zone?
 
     init(instrument: Instrument) {
         _viewModel = StateObject(wrappedValue: ChartViewModel(instrument: instrument))
@@ -128,9 +129,87 @@ struct ChartContainerView: View {
                 }
             )
         }
+        .sheet(item: $orderZone) { zone in
+            PlaceOrderSheet(zone: zone, instrument: viewModel.instrument)
+        }
+        .safeAreaInset(edge: .bottom) {
+            if let zone = viewModel.focusedZone {
+                ZoneFocusBar(zone: zone, instrument: viewModel.instrument) {
+                    orderZone = zone
+                } onDismiss: {
+                    viewModel.focusedZone = nil
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.spring(response: 0.3), value: viewModel.focusedZone?.id)
+            }
+        }
         .task {
             await viewModel.loadData(settings: settings, authService: authService)
         }
+    }
+}
+
+// MARK: - Focused zone bottom bar
+
+/// A compact bottom bar that appears when the user taps a zone on the chart.
+struct ZoneFocusBar: View {
+    let zone: Zone
+    let instrument: Instrument
+    let onPlaceOrder: () -> Void
+    let onDismiss: () -> Void
+
+    private var zoneColor: Color { zone.type == .Supply ? .red : .green }
+    private var direction: String { zone.type == .Supply ? "Short" : "Long" }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Zone type pill
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(zone.type.rawValue)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(zoneColor)
+                    FreshnessBadge(freshness: zone.freshness)
+                }
+                Text("\(formatPrice(zone.baseRangeLow)) — \(formatPrice(zone.baseRangeHigh))")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Place order button
+            Button {
+                onPlaceOrder()
+            } label: {
+                Label("Trade \(direction)", systemImage: zone.type == .Demand ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(zoneColor)
+                    .foregroundStyle(.white)
+                    .clipShape(Capsule())
+            }
+
+            // Dismiss
+            Button {
+                onDismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+                    .font(.title3)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            Divider()
+        }
+    }
+
+    private func formatPrice(_ price: Double) -> String {
+        price < 10 ? String(format: "%.5f", price) : String(format: "%.3f", price)
     }
 }
 

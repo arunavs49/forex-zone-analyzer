@@ -14,6 +14,12 @@ class AppSettings: ObservableObject {
     @Published var pollIntervalMinutes: Int {
         didSet { UserDefaults.standard.set(pollIntervalMinutes, forKey: "pollIntervalMinutes") }
     }
+    @Published var oandaAccountId: String {
+        didSet { UserDefaults.standard.set(oandaAccountId, forKey: "oandaAccountId") }
+    }
+    @Published var riskAmountUSD: Double {
+        didSet { UserDefaults.standard.set(riskAmountUSD, forKey: "riskAmountUSD") }
+    }
 
     init() {
         self.mcpServerURL = UserDefaults.standard.string(forKey: "mcpServerURL")
@@ -21,6 +27,8 @@ class AppSettings: ObservableObject {
         self.bearerToken = UserDefaults.standard.string(forKey: "bearerToken") ?? ""
         self.pollEnabled = UserDefaults.standard.object(forKey: "pollEnabled") as? Bool ?? true
         self.pollIntervalMinutes = UserDefaults.standard.object(forKey: "pollIntervalMinutes") as? Int ?? 15
+        self.oandaAccountId = UserDefaults.standard.string(forKey: "oandaAccountId") ?? ""
+        self.riskAmountUSD = UserDefaults.standard.object(forKey: "riskAmountUSD") as? Double ?? 50.0
     }
 
     var isConfigured: Bool {
