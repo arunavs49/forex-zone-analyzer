@@ -1,5 +1,4 @@
 import SwiftUI
-import UserNotifications
 
 /// Confirmation sheet for placing a zone-derived limit order.
 struct PlaceOrderSheet: View {
@@ -14,6 +13,8 @@ struct PlaceOrderSheet: View {
     @State private var isPlacing = false
     @State private var resultMessage: String?
     @State private var isError = false
+    @State private var showSuccessAlert = false
+    @State private var successMessage = ""
 
     private let service = ForexDataService()
 
@@ -40,6 +41,11 @@ struct PlaceOrderSheet: View {
                     instrumentSymbol: instrument.rawValue,
                     riskAmountUSD: settings.riskAmountUSD
                 )
+            }
+            .alert("Order Placed", isPresented: $showSuccessAlert) {
+                Button("OK") { dismiss() }
+            } message: {
+                Text(successMessage)
             }
         }
     }
@@ -183,32 +189,17 @@ struct PlaceOrderSheet: View {
             isError = false
             isPlacing = false
 
-            // Fire local notification then dismiss
-            sendTradeNotification(params: params, orderId: orderId)
-            try? await Task.sleep(for: .milliseconds(300))
-            dismiss()
+            // Build success message and show alert (dismiss happens on OK)
+            let pair = instrument.rawValue.replacingOccurrences(of: "_", with: "/")
+            let orderLine = orderId.isEmpty ? "" : "\nOrder ID: \(orderId)"
+            successMessage = "\(params.direction) \(pair) limit order submitted.\(orderLine)\n\nEntry: \(formatPrice(params.entryPrice))  ·  SL: \(params.stopLossPips)p  ·  TP: \(params.takeProfitPips)p\n\(params.units.formatted()) units  ·  ~$\(Int(params.riskAmountUSD)) risk"
+            showSuccessAlert = true
 
         } catch {
             resultMessage = error.localizedDescription
             isError = true
             isPlacing = false
         }
-    }
-
-    private func sendTradeNotification(params: ZoneOrderParameters, orderId: String) {
-        let content = UNMutableNotificationContent()
-        let pair = instrument.rawValue.replacingOccurrences(of: "_", with: "/")
-        content.title = "Order Placed — \(params.direction) \(pair)"
-        content.subtitle = orderId.isEmpty ? "Limit order submitted" : "Order ID: \(orderId)"
-        content.body = "Entry \(formatPrice(params.entryPrice)) · SL \(params.stopLossPips)p · TP \(params.takeProfitPips)p · \(params.units.formatted()) units"
-        content.sound = .default
-
-        let request = UNNotificationRequest(
-            identifier: UUID().uuidString,
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
     }
 
     private func formatPrice(_ price: Double) -> String {
