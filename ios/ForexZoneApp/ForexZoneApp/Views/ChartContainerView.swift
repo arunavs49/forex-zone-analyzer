@@ -93,7 +93,10 @@ struct ChartContainerView: View {
                     candles: viewModel.candles,
                     supplyZones: viewModel.chartSupplyZones,
                     demandZones: viewModel.chartDemandZones,
-                    focusedZone: $viewModel.focusedZone
+                    focusedZone: $viewModel.focusedZone,
+                    onZoneTapped: { zone in
+                        tradeZone = zone
+                    }
                 )
                 .background(Color(red: 0.08, green: 0.09, blue: 0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 8))

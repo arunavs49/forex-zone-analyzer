@@ -5,6 +5,7 @@ struct CandlestickChartView: View {
     let supplyZones: [Zone]
     let demandZones: [Zone]
     @Binding var focusedZone: Zone?
+    var onZoneTapped: ((Zone) -> Void)?
 
     @State private var offset: CGFloat = 0
     @State private var scale: CGFloat = 1.0
@@ -241,6 +242,19 @@ struct CandlestickChartView: View {
                     focusedZone = nil
                 }
             }
+            .simultaneousGesture(
+                SpatialTapGesture()
+                    .onEnded { event in
+                        guard onZoneTapped != nil else { return }
+                        let tapY = event.location.y
+                        guard tapY < chartHeight else { return }
+                        let price = range.max - (Double(tapY) / Double(chartHeight)) * (range.max - range.min)
+                        let allZones = supplyZones + demandZones
+                        if let hit = allZones.first(where: { price >= $0.baseRangeLow && price <= $0.baseRangeHigh }) {
+                            onZoneTapped?(hit)
+                        }
+                    }
+            )
         }
     }
 
