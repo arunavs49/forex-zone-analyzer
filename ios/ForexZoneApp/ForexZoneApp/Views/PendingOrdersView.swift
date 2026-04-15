@@ -108,7 +108,11 @@ struct PendingOrdersView: View {
             try await configureService()
             let raw = try await service.fetchPendingOrders(accountId: settings.oandaAccountId)
             orders = raw.compactMap { dict in
-                guard let id = dict["id"] as? String else { return nil }
+                let id: String
+                if let s = dict["id"] as? String { id = s }
+                else if let n = dict["id"] as? Int { id = String(n) }
+                else if let n = dict["id"] as? Double { id = String(Int(n)) }
+                else { return nil }
                 return OrderItem(id: id, data: dict)
             }
         } catch {
@@ -208,7 +212,11 @@ private struct PendingOrderRow: View {
         }
     }
 
-    private var orderId: String { order["id"] as? String ?? "—" }
+    private var orderId: String {
+        if let s = order["id"] as? String { return s }
+        if let n = order["id"] as? Int { return String(n) }
+        return "—"
+    }
     private var orderType: String { (order["type"] as? String ?? "ORDER").replacingOccurrences(of: "_ORDER", with: "") }
     private var instrument: String { (order["instrument"] as? String ?? "—").replacingOccurrences(of: "_", with: "/") }
     private var price: String { order["price"] as? String ?? "—" }
