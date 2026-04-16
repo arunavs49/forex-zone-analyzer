@@ -87,7 +87,7 @@ actor MCPClient {
         return requestId
     }
 
-    private func sendRequest<P: Encodable, R: Decodable>(method: String, params: P) async throws -> R {
+    private func sendRequest<P: Encodable, R: Decodable>(method: String, params: P, isRetry: Bool = false) async throws -> R {
         let id = nextId()
         let body = JSONRPCRequest(jsonrpc: "2.0", id: id, method: method, params: params)
         let bodyData = try JSONEncoder().encode(body)
@@ -114,6 +114,13 @@ actor MCPClient {
         // Capture session ID
         if let sid = httpResponse.value(forHTTPHeaderField: "Mcp-Session-Id") {
             sessionId = sid
+        }
+
+        // On 404 (session not found), clear stale session and re-initialize once
+        if httpResponse.statusCode == 404 && !isRetry {
+            sessionId = nil
+            try await initialize()
+            return try await sendRequest(method: method, params: params, isRetry: true)
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
@@ -144,7 +151,7 @@ actor MCPClient {
         }
     }
 
-    private func sendNotification<P: Encodable>(method: String, params: P) async throws {
+    private func sendNotification<P: Encodable>(method: String, params: P, isRetry: Bool = false) async throws {
         let body = JSONRPCNotification(jsonrpc: "2.0", method: method, params: params)
         let bodyData = try JSONEncoder().encode(body)
 
@@ -162,9 +169,16 @@ actor MCPClient {
         }
 
         let (_, response) = try await session.data(for: request)
-        if let httpResponse = response as? HTTPURLResponse,
-           let sid = httpResponse.value(forHTTPHeaderField: "Mcp-Session-Id") {
-            sessionId = sid
+        if let httpResponse = response as? HTTPURLResponse {
+            if let sid = httpResponse.value(forHTTPHeaderField: "Mcp-Session-Id") {
+                sessionId = sid
+            }
+            // On 404 (session not found), clear stale session and re-initialize once
+            if httpResponse.statusCode == 404 && !isRetry {
+                sessionId = nil
+                try await initialize()
+                try await sendNotification(method: method, params: params, isRetry: true)
+            }
         }
     }
 
