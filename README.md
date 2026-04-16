@@ -34,10 +34,11 @@ Exciting candles whose range overlaps ≥75% with the existing base are absorbed
 
 | Aspect | Details |
 |--------|---------|
-| Language | C# (.NET 10) |
-| Solution | `src/ZoneAnalyzer.sln` — 11 projects |
+| Language | C# (.NET 10), Swift (SwiftUI) |
+| .NET Solution | `src/ZoneAnalyzer.sln` — 11 projects |
+| iOS App | `ios/ForexZoneApp/` — native SwiftUI (ZoneRadar) |
 | Broker | OANDA V20 REST API |
-| Auth | Bearer token (OANDA), Entra ID (MCP server) |
+| Auth | Bearer token (OANDA), Entra ID / MSAL (MCP server + iOS app) |
 | Hosting | Azure Container Apps |
 | Infra | Bicep (IaC) |
 | CI/CD | GitHub Actions (OIDC) |
@@ -50,7 +51,7 @@ Exciting candles whose range overlaps ≥75% with the existing base are absorbed
 # Build (requires .NET 10 SDK)
 dotnet build src/ZoneAnalyzer.sln
 
-# Run tests (1384 tests)
+# Run tests (1387 tests)
 dotnet test src/ZoneAnalyzer.sln
 
 # Run interactive playground
@@ -71,10 +72,14 @@ dotnet run --project src/ForexZoneAnalyzer.Worker
 | `GeriRemenyi.Oanda.V20.Sdk` | High-level SDK wrapper (connection, candle pagination, trades) |
 | `ZoneAnalyzer.PatternAnalysis` | Core zone detection: ZoneFinder state machine, swing-based TrendManager, candle classification |
 | `ZoneAnalyzer.DataProvider` | Instrument wrapper (pass-through) |
-| `ForexZoneAnalyzer.McpServer` | MCP server with 12 tools for interactive zone analysis |
-| `ForexZoneAnalyzer.Worker` | Background worker monitoring currency pairs for new zones with email alerts (H1 only) |
+| `ForexZoneAnalyzer.McpServer` | MCP server with 16 tools for zone analysis, trading, and order management |
+| `ForexZoneAnalyzer.Worker` | Background worker monitoring currency pairs across 6 timeframes with email alerts |
 | `GeriRemenyi.Oanda.V20.Sdk.Playground` | Interactive console demo |
-| `*.Test` | xUnit test projects (1384 tests total) |
+| `*.Test` | xUnit test projects (1387 tests total across 4 projects) |
+
+### iOS App (ZoneRadar)
+
+Native SwiftUI iPhone app under `ios/ForexZoneApp/`. Features interactive candlestick charts with zone overlays, zone-based limit order placement, pending order management, and background zone alerts. Authenticates via MSAL (Entra ID) with automatic token refresh. See **[ios/ForexZoneApp/README.md](ios/ForexZoneApp/README.md)** for setup and deployment instructions.
 
 ## Azure Infrastructure
 
@@ -94,7 +99,7 @@ Deployed via Bicep (`infra/`) to Azure Container Apps:
 ## CI/CD
 
 GitHub Actions pipeline (`.github/workflows/deploy.yml`):
-1. **Build & Test** — restore, build, run all 1384 tests
+1. **Build & Test** — restore, build, run all 1387 tests
 2. **Deploy** — build Docker images, deploy Bicep infra, update Container Apps
 
 Triggered on push to `main` or manual `workflow_dispatch`. Uses OIDC federated credentials (no stored secrets for Azure auth).
@@ -127,6 +132,8 @@ Features:
 
 ## MCP Server Tools
 
+16 tools exposed via the [Model Context Protocol](https://modelcontextprotocol.io/). See **[MCP server README](src/ForexZoneAnalyzer.McpServer/README.md)** for full details.
+
 | Tool | Source | Description |
 |------|--------|-------------|
 | `get_candles` | Live (OANDA) | Candlestick OHLC data by count |
@@ -134,12 +141,23 @@ Features:
 | `get_supply_demand_zones` | Live (OANDA) | Compute zones on-the-fly from live data |
 | `get_stored_zones` | Storage | Pre-computed zones + trend from Table Storage (used by iOS app) |
 | `get_trend` | Live (OANDA) | Compute trend direction on-the-fly |
-| Account tools | Live (OANDA) | Account balance, summary |
-| Trade tools | Live (OANDA) | List/manage open trades |
+| `list_accounts` | Live (OANDA) | List OANDA trading accounts |
+| `get_account_summary` | Live (OANDA) | Account balance, P&L, margin |
+| `get_account_details` | Live (OANDA) | Full account details including positions |
+| `get_tradeable_instruments` | Live (OANDA) | Available currency pairs |
+| `get_open_trades` | Live (OANDA) | List open trades |
+| `open_trade` | Live (OANDA) | Open a market order (⚠️ real money) |
+| `close_trade` | Live (OANDA) | Close an open trade (⚠️ real money) |
+| `place_limit_order` | Live (OANDA) | Place a limit order with SL/TP (⚠️ real money) |
+| `get_pending_orders` | Live (OANDA) | List pending (unfilled) orders |
+| `get_orders` | Live (OANDA) | List all orders with optional state filter |
+| `cancel_order` | Live (OANDA) | Cancel a pending order (⚠️ real money) |
 
 ## Documentation
 
 - **[CODEBASE_REFERENCE.md](CODEBASE_REFERENCE.md)** — Comprehensive architecture, algorithms, and API reference
+- **[MCP Server README](src/ForexZoneAnalyzer.McpServer/README.md)** — MCP server deployment, tools, and configuration
+- **[iOS App README](ios/ForexZoneApp/README.md)** — ZoneRadar iOS app setup and deployment
 
 ## Origins
 

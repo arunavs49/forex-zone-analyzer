@@ -18,14 +18,19 @@ A remote [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server
 | `get_candles` | Get OHLC candlestick data (last N candles) |
 | `get_candles_by_time` | Get OHLC data for a specific date range |
 | `get_supply_demand_zones` | Detect supply/demand zones with freshness analysis |
-| `get_trend` | Linear regression trend direction (Up/Down/Sideways) |
+| `get_trend` | Swing-based trend direction (Up/Down/Sideways) |
+| `get_stored_zones` | Pre-computed zones + trend from Table Storage (refreshed by the background worker) |
 
-### Trade Tools
+### Trade & Order Tools
 | Tool | Description |
 |------|-------------|
 | `get_open_trades` | List currently open trades |
 | `open_trade` | Open a new market order (⚠️ real money) |
 | `close_trade` | Close an existing trade (⚠️ real money) |
+| `place_limit_order` | Place a limit order at a specific entry price with SL/TP (⚠️ real money) |
+| `get_pending_orders` | List pending (unfilled) orders for an account |
+| `get_orders` | List all orders, optionally filtered by state |
+| `cancel_order` | Cancel a pending order by ID (⚠️ real money) |
 
 ---
 
@@ -224,9 +229,10 @@ src/ForexZoneAnalyzer.McpServer/
 │   ├── IOandaConnectionService.cs  # Interface
 │   └── OandaConnectionService.cs   # Key Vault + OANDA connection management
 ├── Tools/
-│   ├── AccountTools.cs             # Account MCP tools
-│   ├── InstrumentTools.cs          # Candles, zones, trends
-│   └── TradeTools.cs               # Open/close trade tools
+│   ├── AccountTools.cs             # Account MCP tools (4 tools)
+│   ├── InstrumentTools.cs          # Candles, zones, trends (4 tools)
+│   ├── TradeTools.cs               # Trade/order management (7 tools)
+│   └── StoredZoneTools.cs          # Pre-computed zones from Table Storage (1 tool)
 ├── appsettings.json                # Configuration template
 └── ForexZoneAnalyzer.McpServer.csproj
 
@@ -234,6 +240,7 @@ src/ForexZoneAnalyzer.McpServer.Test/
 ├── AccountToolsTests.cs
 ├── InstrumentToolsTests.cs
 ├── TradeToolsTests.cs
+├── StoredZoneToolsTests.cs
 └── OandaConnectionServiceTests.cs
 
 infra/
@@ -249,4 +256,4 @@ infra/
 - **Managed identity** — Container App uses user-assigned managed identity for Key Vault access (no credentials to manage)
 - **Entra ID auth** — MCP endpoint requires JWT Bearer tokens from your Azure AD tenant
 - **RBAC** — Least-privilege roles: AcrPull for container registry, Key Vault Secrets User for secrets
-- **Trade tools warning** — `open_trade` and `close_trade` execute real trades; consider restricting access or using FxPractice
+- **Trade tools warning** — `open_trade`, `close_trade`, `place_limit_order`, and `cancel_order` execute real trades/orders; consider restricting access or using FxPractice

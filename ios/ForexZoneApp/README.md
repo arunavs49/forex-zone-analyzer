@@ -1,47 +1,56 @@
 # ZoneRadar — iOS App
 
-A native SwiftUI iPhone app that visualizes supply/demand zones on interactive candlestick charts. Connects to the Forex Zone Analyzer MCP server deployed on Azure Container Apps to fetch real-time candle data, zone analysis, and trend direction.
+A native SwiftUI iPhone app that visualizes supply/demand zones on interactive candlestick charts and enables zone-based limit order placement. Connects to the Forex Zone Analyzer MCP server deployed on Azure Container Apps for real-time candle data, pre-computed zone analysis, trend direction, and trade management.
 
 ## Features
 
-- 📊 **Interactive candlestick charts** with pinch-to-zoom and pan gestures
+- 📊 **Interactive candlestick charts** with pinch-to-zoom, pan, and crosshair gestures
 - 🟢 **Demand zone overlays** (green) and 🔴 **supply zone overlays** (red) rendered directly on charts
 - 📋 **Zone detail list** showing freshness (Untested/Tested/Broken), worked status, base range, and sub-zone flags
-- 📈 **Trend indicator** (Up/Down/Sideways) via linear regression
-- ⏱️ **Multiple timeframes** — 5min, 15min, 30min, 1H, 4H, Daily
-- 💱 **20 forex pairs** — all majors and popular crosses
-- 🔐 **Entra ID authentication** — configurable bearer token for the cloud MCP server
-- 🔌 **MCP protocol client** — native Streamable HTTP (JSON-RPC 2.0) transport
-- 🔔 **Zone alerts** — background polling with local notifications (no Apple Developer account needed)
+- 📈 **Trend indicator** (Up/Down/Sideways) via swing-based detection
+- ⏱️ **Multiple timeframes** — M5, M15, M30, H1, H4, Daily
+- 💱 **20 forex pairs** — 7 major USD pairs and 13 crosses
+- 💹 **Zone-based trading** — tap a zone on the chart to place a limit order with auto-calculated entry, stop loss, and take profit
+- 📑 **Pending orders** — view and cancel open pending orders
+- 🔐 **Entra ID authentication** — MSAL-based sign-in with automatic silent token refresh and interactive fallback
+- 🔌 **MCP protocol client** — native Streamable HTTP (JSON-RPC 2.0) transport with automatic session recovery on 404
+- 🔔 **Zone alerts** — background polling with local notifications for new untested/tested zones
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────┐
-│         iPhone App (SwiftUI)         │
-│  ┌────────────────────────────────┐ │
-│  │ InstrumentListView             │ │
-│  │  └── ChartContainerView        │ │
-│  │       ├── CandlestickChartView │ │
-│  │       │   ├── PriceGridView    │ │
-│  │       │   └── ZoneOverlayView  │ │
-│  │       └── ZoneListView (sheet) │ │
-│  ├────────────────────────────────┤ │
-│  │ ChartViewModel                 │ │
-│  │  └── ForexDataService          │ │
-│  │       └── MCPClient            │ │
-│  │           (JSON-RPC 2.0 /mcp)  │ │
-│  └────────────────────────────────┘ │
-└──────────────┬──────────────────────┘
-               │ HTTPS POST
+┌──────────────────────────────────────────┐
+│         iPhone App (SwiftUI)              │
+│  ┌─────────────────────────────────────┐ │
+│  │ InstrumentListView                  │ │
+│  │  └── ChartContainerView             │ │
+│  │       ├── CandlestickChartView      │ │
+│  │       │   ├── PriceGridView         │ │
+│  │       │   ├── ZoneOverlayView       │ │
+│  │       │   └── CrosshairOverlay      │ │
+│  │       ├── ZoneListView (sheet)      │ │
+│  │       │   └── PlaceOrderSheet       │ │
+│  │       └── PendingOrdersView (sheet) │ │
+│  ├─────────────────────────────────────┤ │
+│  │ AuthService (MSAL / Entra ID)       │ │
+│  │ ChartViewModel                      │ │
+│  │  └── ForexDataService               │ │
+│  │       └── MCPClient                 │ │
+│  │           (JSON-RPC 2.0 /mcp)       │ │
+│  │           (auto session recovery)   │ │
+│  │ ZonePollingService                  │ │
+│  │  └── local notifications            │ │
+│  └─────────────────────────────────────┘ │
+└──────────────┬───────────────────────────┘
+               │ HTTPS POST (Bearer JWT)
                ▼
-┌──────────────────────────────────────┐
-│  Azure Container Apps                │
-│  ForexZoneAnalyzer.McpServer         │
-│  • get_candles                       │
-│  • get_supply_demand_zones           │
-│  • get_trend                         │
-└──────────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│  Azure Container Apps                     │
+│  ForexZoneAnalyzer.McpServer              │
+│  • get_candles       • get_stored_zones   │
+│  • place_limit_order • get_pending_orders │
+│  • cancel_order      • list_accounts      │
+└──────────────────────────────────────────┘
 ```
 
 ## Prerequisites
@@ -58,7 +67,7 @@ A native SwiftUI iPhone app that visualizes supply/demand zones on interactive c
 ### Step 1: Open the Project in Xcode
 
 ```bash
-cd ios/ZoneRadar
+cd ios/ForexZoneApp
 open ZoneRadar.xcodeproj
 ```
 
@@ -106,9 +115,9 @@ If you haven't already:
 
 Once the app is running on your iPhone, tap the **⚙️ gear icon** and configure the connection. You have two options:
 
-#### Option A: Connect to Azure (Production)
+#### Option A: Connect to Azure (Production) — Entra ID Sign-In
 
-Use this if you've deployed the MCP server to Azure Container Apps.
+Use this if you've deployed the MCP server to Azure Container Apps. The app uses MSAL (Microsoft Authentication Library) for Entra ID sign-in with automatic silent token refresh.
 
 1. **Get your MCP server URL:**
    ```bash
@@ -116,17 +125,25 @@ Use this if you've deployed the MCP server to Azure Container Apps.
      --query properties.configuration.ingress.fqdn -o tsv)
    echo "https://${FQDN}/mcp"
    ```
-2. **Get an Entra ID bearer token:**
+2. In the app settings, enter the **Server URL**: `https://<fqdn>/mcp`
+3. Tap **Sign in with Microsoft** — the app handles token acquisition and refresh automatically
+4. Select your **OANDA Account ID** (the app fetches available accounts after sign-in)
+5. Tap **Done**
+
+> **Note:** The app silently refreshes tokens. If the refresh token expires, an interactive sign-in prompt appears automatically.
+
+#### Option A (fallback): Manual Bearer Token
+
+If MSAL sign-in is unavailable, you can paste a token manually:
+
+1. **Get an Entra ID bearer token:**
    ```bash
    az account get-access-token --resource api://<your-app-client-id> --query accessToken -o tsv
    ```
-   Or use the included script: `./scripts/get-mcp-token.sh`
-3. In the app settings, enter:
-   - **Server URL**: `https://<fqdn>/mcp`
-   - **Bearer Token**: paste the token from above
-4. Tap **Done**
+2. In the app settings, enter the **Server URL** and paste the **Bearer Token**
+3. Tap **Done**
 
-> **Note:** Entra ID tokens expire after ~1 hour. Generate a fresh token when the app shows auth errors.
+> **Note:** Manual tokens expire after ~1 hour and must be refreshed manually.
 
 #### Option B: Connect to Local Dev Server
 
@@ -159,10 +176,12 @@ Use this to test against the MCP server running on your Mac. No Entra ID token i
 
 1. Select a **currency pair** from the list (e.g., EUR/USD)
 2. Choose a **timeframe** using the segmented picker (e.g., H1)
-3. The app will fetch candle data and zones from your MCP server
+3. The app fetches live candle data and pre-computed zones/trend from the MCP server
 4. **Pinch** to zoom in/out, **drag** to pan the chart
-5. Tap the **list icon** (top-right) to see detailed zone information
-6. Tap **↻** to refresh data
+5. **Tap a zone** on the chart to open the order placement sheet with auto-calculated entry, stop loss, and take profit
+6. Tap the **list icon** (top-right) to see detailed zone information and place orders
+7. Tap the **orders icon** to view and cancel pending orders
+8. Tap **↻** to refresh data
 
 ---
 
@@ -197,10 +216,13 @@ Make sure Developer Mode is enabled (Step 4) and the device is unlocked when dep
 Ensure your MCP server URL is correct and reachable from your iPhone's network.
 
 ### Token expired
-Entra ID tokens expire (typically after 1 hour). Generate a fresh token using:
+The app automatically refreshes tokens via MSAL silent renewal. If the refresh token itself expires, an interactive sign-in prompt appears. For manual bearer tokens, generate a fresh one using:
 ```bash
 az account get-access-token --resource api://<your-app-client-id> --query accessToken -o tsv
 ```
+
+### "Session not found" (404) errors
+The MCP client automatically recovers from expired server sessions by clearing the stale session ID, re-initializing, and retrying the request. If errors persist, check that the MCP server is running.
 
 ### No data showing
 - Verify the MCP server is running: `curl https://<your-url>/health`
@@ -217,33 +239,39 @@ az account get-access-token --resource api://<your-app-client-id> --query access
 ## Project Structure
 
 ```
-ios/ZoneRadar/
-├── ZoneRadar.xcodeproj/        # Xcode project
-└── ZoneRadar/
-    ├── ZoneRadarApp.swift       # App entry point
-    ├── ContentView.swift           # Root navigation + settings sheet
+ios/ForexZoneApp/
+├── ZoneRadar.xcodeproj/           # Xcode project
+└── ForexZoneApp/
+    ├── ZoneRadarApp.swift          # App entry point, scene lifecycle, background tasks
+    ├── ContentView.swift           # Root navigation + settings/pending-orders sheets
+    ├── Info.plist                   # App config (MSAL redirect, background modes)
+    ├── ZoneRadar.entitlements       # Keychain sharing for MSAL token cache
     ├── Models/
-    │   ├── Candle.swift            # OHLCV candlestick model
-    │   ├── Zone.swift              # Supply/demand zone model
+    │   ├── Candle.swift             # OHLCV candlestick model
+    │   ├── Zone.swift               # Supply/demand zone model + order parameter calculation
     │   ├── ZoneAnalysisResponse.swift  # MCP tool response model
-    │   ├── Instrument.swift        # Currency pair + granularity enums
-    │   └── AppSettings.swift       # UserDefaults-backed settings
+    │   ├── Instrument.swift         # Currency pair + granularity enums
+    │   └── AppSettings.swift        # UserDefaults-backed settings (URL, account, risk)
     ├── Services/
-    │   ├── MCPClient.swift         # MCP Streamable HTTP client (JSON-RPC 2.0)
-    │   ├── ForexDataService.swift  # Typed wrapper for MCP tool calls
-    │   └── ZonePollingService.swift     # Background polling + local notifications
+    │   ├── MCPClient.swift          # MCP Streamable HTTP client (JSON-RPC 2.0) with session recovery
+    │   ├── ForexDataService.swift   # Typed wrapper for MCP tool calls
+    │   ├── AuthService.swift        # MSAL / Entra ID sign-in with silent refresh
+    │   └── ZonePollingService.swift # Background polling + local notifications
     ├── ViewModels/
-    │   └── ChartViewModel.swift    # Async data fetching + state
+    │   └── ChartViewModel.swift     # Async data fetching + chart state
     ├── Views/
-    │   ├── InstrumentListView.swift    # Pair picker (majors + crosses)
-    │   ├── ChartContainerView.swift    # Chart + controls + trend badge
-    │   ├── ZoneListView.swift          # Zone detail list (sheet)
-    │   ├── SettingsView.swift          # MCP URL + token configuration
+    │   ├── InstrumentListView.swift    # Pair picker (7 majors + 13 crosses)
+    │   ├── ChartContainerView.swift    # Chart + controls + trend badge + trade bar
+    │   ├── ZoneListView.swift          # Zone detail list with order placement
+    │   ├── PlaceOrderSheet.swift       # Limit order form with auto-calculated parameters
+    │   ├── PendingOrdersView.swift     # View and cancel open pending orders
+    │   ├── SettingsView.swift          # MCP URL, auth, account, risk, polling config
     │   └── Components/
     │       ├── CandlestickChartView.swift  # Custom Canvas chart renderer
     │       ├── ZoneOverlayView.swift       # Zone rectangle overlay
+    │       ├── CrosshairOverlay.swift      # Crosshair + zone tap selection
     │       └── PriceGridView.swift         # Price axis grid lines
-    └── Assets.xcassets/            # App icons and assets
+    └── Assets.xcassets/             # App icons and assets
 ```
 
 ## MCP Tools Used
@@ -251,5 +279,8 @@ ios/ZoneRadar/
 | Tool | Purpose |
 |------|---------|
 | `get_candles` | Fetch OHLCV candlestick data for chart rendering |
-| `get_supply_demand_zones` | Detect supply/demand zones with freshness analysis |
-| `get_trend` | Get trend direction via linear regression |
+| `get_stored_zones` | Fetch pre-computed zones and trend from Table Storage |
+| `place_limit_order` | Place a limit order derived from zone parameters |
+| `get_pending_orders` | List pending (unfilled) orders for an account |
+| `cancel_order` | Cancel a pending order by ID |
+| `list_accounts` | Fetch available OANDA account IDs for settings |

@@ -23,7 +23,7 @@
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │               ForexZoneAnalyzer.McpServer                    │
-│         MCP server: 12 tools for zone analysis               │
+│         MCP server: 16 tools for zone analysis & trading     │
 │         (Azure Container Apps + Entra ID auth)               │
 ├──────────────────────────────────────────────────────────────┤
 │               ForexZoneAnalyzer.Worker                        │
@@ -32,7 +32,13 @@
 │         • ZoneMonitorService (polling loop)                   │
 │         • CandleCacheService (2000 sliding window)            │
 │         • IZoneStore (Table Storage / in-memory)              │
-│         • INotificationService (ACS Email / push / console)    │
+│         • INotificationService (ACS Email / console)          │
+├──────────────────────────────────────────────────────────────┤
+│               ZoneRadar iOS App (SwiftUI)                     │
+│         Charts, zone overlays, order placement, alerts        │
+│         • MCPClient (JSON-RPC 2.0 with session recovery)     │
+│         • AuthService (MSAL / Entra ID)                       │
+│         • ZonePollingService (background + local notifs)       │
 ├──────────────────────────────────────────────────────────────┤
 │               Sdk.Playground (Console App)                    │
 │         Interactive menus: accounts, instruments, trades      │
@@ -66,7 +72,7 @@ Azure Infrastructure (Bicep):
 │  ├── ca-forex-mcp (MCP server, external ingress)       │
 │  └── ca-forex-mcp-worker (worker, no ingress)          │
 ├────────────────────────────────────────────────────────┤
-│  ACR │ Key Vault │ Storage │ ACS Email │ Notification Hub │ MI │
+│  ACR │ Key Vault │ Storage │ ACS Email │ MI             │
 └────────────────────────────────────────────────────────┘
 ```
 
@@ -367,8 +373,8 @@ Main Menu
 |---------|--------|
 | `Client.Test` | Auto-generated xUnit stubs — 1250 tests (mostly `// TODO` bodies that pass) |
 | `PatternAnalysis.Test` | **39 real tests:** 4 ZoneManager, 7 ZoneFinder freshness/worked, 3 base overlap, 8 sub-zone, 17 TrendManager swing detection |
-| `McpServer.Test` | **20 tests:** MCP tool integration tests |
-| `Worker.Test` | **75 tests:** InMemoryZoneStore (with trend), ConsoleNotificationService, MonitorSettings, zone change detection, candle-aligned scheduling, ShouldProcessTimeframe |
+| `McpServer.Test` | **29 tests:** MCP tool integration tests (accounts, instruments, trades, stored zones, connection service) |
+| `Worker.Test` | **69 tests:** InMemoryZoneStore (with trend), ConsoleNotificationService, MonitorSettings, zone change detection, candle-aligned scheduling |
 
 #### Test Coverage
 
@@ -472,8 +478,24 @@ var trend = TrendManager.Create(candles);
 │   └── modules/
 │       └── resources.bicep                 # All Azure resources (ACR, Key Vault, Storage, ACS,
 │                                           #   Email Service, Container Apps Env, MCP app, worker app)
+├── ios/
+│   └── ForexZoneApp/                       # ZoneRadar iOS app (SwiftUI)
+│       ├── ZoneRadar.xcodeproj/            # Xcode project
+│       └── ForexZoneApp/
+│           ├── ZoneRadarApp.swift           # App entry, scene lifecycle, background tasks
+│           ├── ContentView.swift            # Root navigation + sheets
+│           ├── Models/                      # Candle, Zone, Instrument, AppSettings
+│           ├── Services/
+│           │   ├── MCPClient.swift          # MCP JSON-RPC 2.0 client (session recovery)
+│           │   ├── ForexDataService.swift   # Typed MCP tool wrappers
+│           │   ├── AuthService.swift        # MSAL / Entra ID auth
+│           │   └── ZonePollingService.swift # Background polling + local notifications
+│           ├── ViewModels/
+│           │   └── ChartViewModel.swift     # Async data fetching + chart state
+│           └── Views/                       # InstrumentList, Chart, ZoneList, PlaceOrder,
+│                                            #   PendingOrders, Settings + chart Components
 ├── scripts/
-│   └── deploy.sh                           # Manual deployment helper
+│   └── get-mcp-token.sh                    # Entra ID token fetcher for VS Code MCP auth
 ├── Dockerfile                              # MCP server multi-stage build
 ├── Dockerfile.worker                       # Worker service multi-stage build
 └── src/
@@ -505,12 +527,17 @@ var trend = TrendManager.Create(candles);
     │   ├── ZoneFinderBaseOverlapTests.cs
     │   ├── ZoneFinderSubZoneTests.cs
     │   └── TrendManagerTests.cs
-    ├── ForexZoneAnalyzer.McpServer/            # MCP server (12 tools)
+    ├── ForexZoneAnalyzer.McpServer/            # MCP server (16 tools)
     │   ├── Program.cs                          # Host builder, Entra ID auth, Table Storage, MapMcp("/mcp")
+    │   ├── Services/
+    │   │   ├── IOandaConnectionService.cs      # Connection interface
+    │   │   └── OandaConnectionService.cs       # Key Vault + OANDA connection mgmt
     │   └── Tools/
-    │       ├── InstrumentTools.cs              # Live OANDA MCP tools (candles, zones, trend)
-    │       └── StoredZoneTools.cs              # Pre-computed zones + trend from Table Storage
-    ├── ForexZoneAnalyzer.McpServer.Test/       # 20 integration tests
+    │       ├── AccountTools.cs                 # Account MCP tools (4 tools)
+    │       ├── InstrumentTools.cs              # Candles, zones, trend (4 tools)
+    │       ├── TradeTools.cs                   # Trade/order management (7 tools)
+    │       └── StoredZoneTools.cs              # Pre-computed zones from Table Storage (1 tool)
+    ├── ForexZoneAnalyzer.McpServer.Test/       # 29 integration tests
     ├── ForexZoneAnalyzer.Worker/               # Background zone monitor
     │   ├── Program.cs                          # Host builder, DI wiring
     │   ├── Configuration/
@@ -524,14 +551,10 @@ var trend = TrendManager.Create(candles);
     │       ├── TableStorageZoneStore.cs        # Azure Table Storage zone store
     │       ├── INotificationService.cs         # Notification interface
     │       ├── ConsoleNotificationService.cs   # Console output (dev)
-    │       ├── EmailNotificationService.cs     # ACS Email (production)
-    │       ├── PushNotificationService.cs      # Azure Notification Hub → APNs
-    │       └── CompositeNotificationService.cs # Dispatches to email + push in parallel
-    └── ForexZoneAnalyzer.Worker.Test/          # 75 tests
+    │       └── EmailNotificationService.cs     # ACS Email (production)
+    └── ForexZoneAnalyzer.Worker.Test/          # 69 tests
         ├── InMemoryZoneStoreTests.cs
         ├── ConsoleNotificationServiceTests.cs
-        ├── PushNotificationServiceTests.cs
-        ├── CompositeNotificationServiceTests.cs
         ├── MonitorSettingsTests.cs
         ├── ZoneChangeDetectionTests.cs
         └── CandleAlignedScheduleTests.cs
@@ -553,7 +576,6 @@ var trend = TrendManager.Create(candles);
 | Azure.Security.KeyVault.Secrets | 4.7.0 | McpServer | OANDA token retrieval from Key Vault |
 | Azure.Data.Tables | 12.9.1 | Worker | Azure Table Storage for zone persistence |
 | Azure.Communication.Email | 1.0.1 | Worker | ACS email notifications |
-| Microsoft.Azure.NotificationHubs | 4.2.0 | Worker | Push notifications via Azure Notification Hub |
 | Microsoft.Extensions.Hosting | 10.0.0 | Worker | .NET 10 Worker SDK BackgroundService |
 | Microsoft.Extensions.Caching.Memory | 10.0.0 | Worker | In-memory candle cache |
 | xUnit | 2.9.3 | Test projects | Unit testing |
@@ -596,14 +618,15 @@ var trend = TrendManager.Create(candles);
 forex-zone-analyzer
 ├── PatternAnalysis/         # Zone detection, swing-based trend, candle classification
 ├── Oanda Client + SDK/      # Full OANDA V20 API: candles, accounts, trades
-├── MCP Server/              # 12 tools exposed via MCP protocol (Entra ID auth)
+├── MCP Server/              # 16 tools exposed via MCP protocol (Entra ID auth)
 ├── Worker/                  # Background monitoring: cache → detect → notify
 │   ├── Caching/             # CandleCacheService (2000 sliding window)
 │   ├── Persistence/         # IZoneStore (Table Storage / in-memory)
-│   └── Notifications/       # INotificationService (ACS Email / Push / console)
+│   └── Notifications/       # INotificationService (ACS Email / console)
+├── iOS App (ZoneRadar)/     # SwiftUI charts, zone trading, MSAL auth
 ├── Infra/                   # Bicep: ACR, Key Vault, Storage, ACS, Container Apps
 ├── CI/CD/                   # GitHub Actions with OIDC + Bicep deploy
-└── Tests/                   # 1,372 tests across 4 test projects
+└── Tests/                   # 1,387 tests across 4 .NET test projects
 ```
 
 ### Potential Enhancements
