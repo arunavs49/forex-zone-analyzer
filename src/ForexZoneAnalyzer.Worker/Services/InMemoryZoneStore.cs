@@ -24,6 +24,13 @@ public class InMemoryZoneStore : IZoneStore
         return Task.CompletedTask;
     }
 
+    public Task ClearZonesAsync(string instrument, string granularity, CancellationToken cancellationToken)
+    {
+        var key = $"{instrument}_{granularity}";
+        _store.TryRemove(key, out _);
+        return Task.CompletedTask;
+    }
+
     public Task<string?> GetTrendAsync(string instrument, string granularity, CancellationToken cancellationToken)
     {
         var key = $"{instrument}_{granularity}";

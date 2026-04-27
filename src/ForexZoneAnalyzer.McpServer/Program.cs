@@ -48,6 +48,39 @@ builder.Services.AddSingleton(sp =>
     return client;
 });
 
+// Azure Table Storage clients for pair configs and status
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var connectionString = config["Storage:ConnectionString"];
+
+    var clientOptions = new TableClientOptions();
+    clientOptions.Retry.MaxRetries = 5;
+    clientOptions.Retry.Mode = Azure.Core.RetryMode.Exponential;
+    clientOptions.Retry.Delay = TimeSpan.FromSeconds(1);
+    clientOptions.Retry.MaxDelay = TimeSpan.FromSeconds(30);
+
+    TableClient configClient, statusClient;
+    if (!string.IsNullOrEmpty(connectionString))
+    {
+        configClient = new TableClient(connectionString, "pairconfigs", clientOptions);
+        statusClient = new TableClient(connectionString, "pairstatus", clientOptions);
+    }
+    else
+    {
+        var accountName = config["Storage:AccountName"];
+        var endpoint = new Uri($"https://{accountName}.table.core.windows.net");
+        var credential = new DefaultAzureCredential();
+        configClient = new TableClient(endpoint, "pairconfigs", credential, clientOptions);
+        statusClient = new TableClient(endpoint, "pairstatus", credential, clientOptions);
+    }
+
+    configClient.CreateIfNotExists();
+    statusClient.CreateIfNotExists();
+
+    return new ForexZoneAnalyzer.McpServer.Services.ConfigTableClient(configClient, statusClient);
+});
+
 // MCP server with HTTP transport + auto-discovered tools
 builder.Services
     .AddMcpServer(options =>

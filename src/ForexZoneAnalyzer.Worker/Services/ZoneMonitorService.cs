@@ -13,32 +13,29 @@ public class ZoneMonitorService : BackgroundService
 {
     private readonly CandleCacheService _candleCache;
     private readonly IZoneStore _zoneStore;
+    private readonly IConfigStore _configStore;
     private readonly INotificationService _notificationService;
     private readonly OandaConnectionService _connectionService;
     private readonly ILogger<ZoneMonitorService> _logger;
     private readonly MonitorSettings _monitorSettings;
-    private readonly ZoneConfiguration _zoneConfig;
-    private readonly TrendConfiguration _trendConfig;
     private readonly ResiliencePipeline _retryPipeline;
 
     public ZoneMonitorService(
         CandleCacheService candleCache,
         IZoneStore zoneStore,
+        IConfigStore configStore,
         INotificationService notificationService,
         OandaConnectionService connectionService,
         ILogger<ZoneMonitorService> logger,
-        IOptions<MonitorSettings> monitorSettings,
-        IOptions<ZoneConfiguration> zoneConfig,
-        IOptions<TrendConfiguration> trendConfig)
+        IOptions<MonitorSettings> monitorSettings)
     {
         _candleCache = candleCache;
         _zoneStore = zoneStore;
+        _configStore = configStore;
         _notificationService = notificationService;
         _connectionService = connectionService;
         _logger = logger;
         _monitorSettings = monitorSettings.Value;
-        _zoneConfig = zoneConfig.Value;
-        _trendConfig = trendConfig.Value;
 
         _retryPipeline = new ResiliencePipelineBuilder()
             .AddRetry(new RetryStrategyOptions
@@ -59,30 +56,15 @@ public class ZoneMonitorService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var instruments = _monitorSettings.Instruments
-            .Select(i => Enum.Parse<InstrumentName>(i, ignoreCase: true))
-            .ToArray();
+        // Use a fixed poll interval from MonitorSettings (smallest configured TF, or default 5 min)
+        var intervalMinutes = _monitorSettings.Timeframes.Length > 0
+            ? _monitorSettings.Timeframes
+                .Select(tf => GetGranularityMinutes(
+                    Enum.Parse<CandlestickGranularity>(tf.ZoneGranularity, ignoreCase: true)))
+                .Min()
+            : 5;
 
-        // Parse all timeframe pairs, deduplicating by zone granularity
-        var timeframePairs = _monitorSettings.Timeframes
-            .GroupBy(tf => tf.ZoneGranularity, StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.First())
-            .Select(tf => (
-                Zone: Enum.Parse<CandlestickGranularity>(tf.ZoneGranularity, ignoreCase: true),
-                Trend: Enum.Parse<CandlestickGranularity>(tf.TrendGranularity, ignoreCase: true),
-                ZoneStr: tf.ZoneGranularity,
-                TrendStr: tf.TrendGranularity
-            )).ToArray();
-
-        _logger.LogInformation("Loaded {Count} timeframe pairs from config (raw config had {RawCount} entries)",
-            timeframePairs.Length, _monitorSettings.Timeframes.Length);
-
-        // Poll interval is the smallest zone granularity
-        var intervalMinutes = timeframePairs.Min(tf => GetGranularityMinutes(tf.Zone));
-        var timeframeList = string.Join(", ", timeframePairs.Select(tf => $"{tf.ZoneStr}→{tf.TrendStr}"));
-        _logger.LogInformation("Zone Monitor starting. Instruments: [{Instruments}], Timeframes: [{Timeframes}], Interval: {Interval}min",
-            string.Join(", ", _monitorSettings.Instruments),
-            timeframeList,
+        _logger.LogInformation("Zone Monitor starting. Poll interval: {Interval}min. Configs from Table Storage.",
             intervalMinutes);
 
         // Wait for the first candle-aligned slot before starting
@@ -98,30 +80,41 @@ public class ZoneMonitorService : BackgroundService
 
             try
             {
-                // On first cycle, check storage freshness to skip timeframes
-                // that were already processed recently (e.g. after a restart).
-                // On subsequent cycles, use candle-alignment gating.
-                var dueTimeframes = firstCycle
-                    ? await GetStaleTimeframesAsync(instruments[0], timeframePairs, cycleStart, stoppingToken)
-                    : timeframePairs.Where(tf =>
-                        ShouldProcessTimeframe(cycleStart, GetGranularityMinutes(tf.Zone), intervalMinutes)
-                      ).ToArray();
+                // Load enabled configs from store each cycle
+                var enabledConfigs = await _configStore.GetEnabledConfigsAsync(stoppingToken);
 
-                if (dueTimeframes.Length > 0)
+                if (enabledConfigs.Count == 0)
                 {
-                    var tfNames = string.Join(", ", dueTimeframes.Select(tf => tf.ZoneStr));
-                    _logger.LogInformation("Processing {Count} timeframes this cycle: [{Timeframes}]",
-                        dueTimeframes.Length, tfNames);
-
-                    var tasks = instruments.Select(instrument =>
-                        ProcessInstrumentAllTimeframesAsync(instrument, dueTimeframes, stoppingToken)
-                    ).ToArray();
-
-                    await Task.WhenAll(tasks);
+                    _logger.LogDebug("No enabled pair configs found");
                 }
                 else
                 {
-                    _logger.LogDebug("No timeframes due this cycle");
+                    // Group configs by instrument for parallel processing
+                    var byInstrument = enabledConfigs.GroupBy(c => c.Instrument);
+
+                    // On first cycle, filter to stale configs only
+                    var configsToProcess = firstCycle
+                        ? await GetStaleConfigsAsync(enabledConfigs, cycleStart, stoppingToken)
+                        : GetDueConfigs(enabledConfigs, cycleStart, intervalMinutes);
+
+                    if (configsToProcess.Count > 0)
+                    {
+                        var configNames = string.Join(", ", configsToProcess.Select(c => $"{c.Instrument}/{c.ZoneGranularity}"));
+                        _logger.LogInformation("Processing {Count} configs this cycle: [{Configs}]",
+                            configsToProcess.Count, configNames);
+
+                        // Process each instrument in parallel, configs within sequentially
+                        var tasks = configsToProcess
+                            .GroupBy(c => c.Instrument)
+                            .Select(group => ProcessInstrumentConfigsAsync(group.Key, group.ToList(), stoppingToken))
+                            .ToArray();
+
+                        await Task.WhenAll(tasks);
+                    }
+                    else
+                    {
+                        _logger.LogDebug("No configs due this cycle");
+                    }
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -144,67 +137,80 @@ public class ZoneMonitorService : BackgroundService
     }
 
     /// <summary>
-    /// Process all due timeframes for a single instrument. Each instrument runs
-    /// in parallel with others; timeframes within an instrument run sequentially.
+    /// Process all configs for a single instrument sequentially.
     /// </summary>
-    private async Task ProcessInstrumentAllTimeframesAsync(
-        InstrumentName instrument,
-        (CandlestickGranularity Zone, CandlestickGranularity Trend, string ZoneStr, string TrendStr)[] timeframes,
+    private async Task ProcessInstrumentConfigsAsync(
+        string instrument,
+        List<PairConfig> configs,
         CancellationToken cancellationToken)
     {
-        foreach (var tf in timeframes)
+        foreach (var config in configs)
         {
             try
             {
                 await _retryPipeline.ExecuteAsync(
-                    async ct => await ProcessInstrumentAsync(instrument, tf.Zone, tf.Trend, tf.ZoneStr, ct),
+                    async ct => await ProcessConfigAsync(config, ct),
                     cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Failed to process {Instrument} {Granularity} after retries",
-                    instrument, tf.ZoneStr);
+                    instrument, config.ZoneGranularity);
             }
         }
     }
 
     /// <summary>
-    /// Checks storage freshness for each timeframe and returns only those
-    /// that are stale (no stored data, or last update is older than the candle interval).
-    /// Used on first cycle after restart to avoid redundant OANDA calls.
+    /// On first cycle, return only configs whose stored data is stale.
     /// </summary>
-    private async Task<(CandlestickGranularity Zone, CandlestickGranularity Trend, string ZoneStr, string TrendStr)[]>
-        GetStaleTimeframesAsync(
-            InstrumentName sampleInstrument,
-            (CandlestickGranularity Zone, CandlestickGranularity Trend, string ZoneStr, string TrendStr)[] allTimeframes,
-            DateTime utcNow,
-            CancellationToken cancellationToken)
+    private async Task<List<PairConfig>> GetStaleConfigsAsync(
+        List<PairConfig> configs,
+        DateTime utcNow,
+        CancellationToken cancellationToken)
     {
-        var stale = new List<(CandlestickGranularity Zone, CandlestickGranularity Trend, string ZoneStr, string TrendStr)>();
+        var stale = new List<PairConfig>();
 
-        foreach (var tf in allTimeframes)
+        foreach (var config in configs)
         {
-            var lastUpdated = await _zoneStore.GetLastUpdatedAsync(
-                sampleInstrument.ToString(), tf.ZoneStr, cancellationToken);
+            var status = await _configStore.GetStatusAsync(config.Instrument, config.ZoneGranularity, cancellationToken);
+            var candleMinutes = GetGranularityMinutes(
+                Enum.Parse<CandlestickGranularity>(config.ZoneGranularity, ignoreCase: true));
 
-            var candleMinutes = GetGranularityMinutes(tf.Zone);
-
-            // null = never processed or legacy entity without UpdatedAt → treat as stale
-            if (lastUpdated == null || (utcNow - lastUpdated.Value).TotalMinutes >= candleMinutes)
+            // Stale if: never processed, config version changed, or data is older than candle interval
+            if (status == null
+                || status.ConfigVersionProcessed != config.ConfigVersion
+                || !status.LastProcessedUtc.HasValue
+                || (utcNow - status.LastProcessedUtc.Value).TotalMinutes >= candleMinutes)
             {
-                stale.Add(tf);
-                _logger.LogDebug("Timeframe {TF} is stale (last updated: {LastUpdated})", tf.ZoneStr,
-                    lastUpdated?.ToString("yyyy-MM-dd HH:mm") ?? "never");
+                stale.Add(config);
+                _logger.LogDebug("{Instrument} {TF} is stale (status: {Status})",
+                    config.Instrument, config.ZoneGranularity,
+                    status == null ? "never processed" : $"v{status.ConfigVersionProcessed}, last={status.LastProcessedUtc:HH:mm}");
             }
             else
             {
-                _logger.LogInformation("Skipping {TF} on restart — still fresh (updated {Ago:N0} min ago)",
-                    tf.ZoneStr, (utcNow - lastUpdated.Value).TotalMinutes);
+                _logger.LogInformation("Skipping {Instrument} {TF} on restart — still fresh (updated {Ago:N0} min ago)",
+                    config.Instrument, config.ZoneGranularity,
+                    (utcNow - status.LastProcessedUtc.Value).TotalMinutes);
             }
         }
 
-        return stale.ToArray();
+        return stale;
     }
+
+    /// <summary>
+    /// Return configs whose zone timeframe is due based on candle alignment.
+    /// </summary>
+    private static List<PairConfig> GetDueConfigs(List<PairConfig> configs, DateTime utcNow, int pollIntervalMinutes)
+    {
+        return configs.Where(config =>
+        {
+            var tfMinutes = GetGranularityMinutes(
+                Enum.Parse<CandlestickGranularity>(config.ZoneGranularity, ignoreCase: true));
+            return ShouldProcessTimeframe(utcNow, tfMinutes, pollIntervalMinutes);
+        }).ToList();
+    }
+
     /// Determines whether a timeframe should be processed in the current cycle.
     /// A timeframe is due when the current time aligns with its candle interval.
     /// </summary>
@@ -267,15 +273,28 @@ public class ZoneMonitorService : BackgroundService
         _ => 15 // fallback
     };
 
-    private async Task ProcessInstrumentAsync(
-        InstrumentName instrument,
-        CandlestickGranularity zoneGranularity,
-        CandlestickGranularity trendGranularity,
-        string granularityStr,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// Process a single pair+TF config: detect zones, compute trend, persist, notify.
+    /// </summary>
+    private async Task ProcessConfigAsync(PairConfig config, CancellationToken cancellationToken)
     {
-        var instrumentName = instrument.ToString();
-        _logger.LogDebug("Processing {Instrument} {Granularity}", instrumentName, granularityStr);
+        var instrumentName = config.Instrument;
+        var granularityStr = config.ZoneGranularity;
+        var instrument = Enum.Parse<InstrumentName>(instrumentName, ignoreCase: true);
+        var zoneGranularity = Enum.Parse<CandlestickGranularity>(granularityStr, ignoreCase: true);
+        var trendGranularity = Enum.Parse<CandlestickGranularity>(config.TrendGranularity, ignoreCase: true);
+
+        _logger.LogDebug("Processing {Instrument} {Granularity} (config v{Version})",
+            instrumentName, granularityStr, config.ConfigVersion);
+
+        // Check if config version changed — clear old zones first
+        var currentStatus = await _configStore.GetStatusAsync(instrumentName, granularityStr, cancellationToken);
+        if (currentStatus != null && currentStatus.ConfigVersionProcessed != config.ConfigVersion)
+        {
+            _logger.LogInformation("Config version changed for {Instrument} {Granularity} (v{Old}→v{New}), clearing old zones",
+                instrumentName, granularityStr, currentStatus.ConfigVersionProcessed, config.ConfigVersion);
+            await _zoneStore.ClearZonesAsync(instrumentName, granularityStr, cancellationToken);
+        }
 
         // 1. Get candles from cache (incremental fetch)
         var candles = await _candleCache.GetCandlesAsync(instrument, zoneGranularity, cancellationToken);
@@ -285,8 +304,9 @@ public class ZoneMonitorService : BackgroundService
             return;
         }
 
-        // 2. Run ZoneManager with configurable ZoneConfiguration
-        var zoneManager = ZoneManager.Create(candles, _zoneConfig);
+        // 2. Run ZoneManager with per-config ZoneConfiguration
+        var zoneConfig = config.ToZoneConfiguration();
+        var zoneManager = ZoneManager.Create(candles, zoneConfig);
         var freshZones = zoneManager.GetSupplyZones().Concat(zoneManager.GetDemandZones()).ToList();
 
         // 3. Load previously persisted zones
@@ -299,8 +319,9 @@ public class ZoneMonitorService : BackgroundService
         // 5. Persist all fresh zones (updates Freshness, Worked, SubZone for existing ones)
         await _zoneStore.UpsertZonesAsync(instrumentName, granularityStr, freshZones, cancellationToken);
 
-        // 6. Compute and persist trend
-        var trend = await GetTrendAsync(instrument, trendGranularity, cancellationToken);
+        // 6. Compute and persist trend using per-config TrendConfiguration
+        var trendConfig = config.ToTrendConfiguration();
+        var trend = await GetTrendAsync(instrument, trendGranularity, trendConfig, cancellationToken);
         await _zoneStore.UpsertTrendAsync(instrumentName, granularityStr, trend, cancellationToken);
 
         _logger.LogInformation("{Instrument} {Granularity}: {Total} zones ({New} new, {Supply} supply, {Demand} demand), trend={Trend}",
@@ -309,9 +330,8 @@ public class ZoneMonitorService : BackgroundService
             freshZones.Count(z => z.Type == ZoneType.Demand),
             trend);
 
-        // 7. Send notifications only for H1 timeframe new zones that are not broken
-        //    Fire-and-forget: notification failures should not crash or retry the cycle
-        if (newZones.Count > 0 && zoneGranularity == CandlestickGranularity.H1)
+        // 7. Send notifications if email is enabled for this config and there are new active zones
+        if (newZones.Count > 0 && config.EmailEnabled)
         {
             var activeNewZones = newZones.Where(z => z.Freshness != ZoneFreshness.Broken).ToList();
             _logger.LogInformation("{Instrument} {Granularity}: {Active} active new zones (skipped {Broken} broken)",
@@ -329,17 +349,29 @@ public class ZoneMonitorService : BackgroundService
                 }
             }
         }
+
+        // 8. Update pair status
+        await _configStore.UpsertStatusAsync(new PairStatus
+        {
+            Instrument = instrumentName,
+            ZoneGranularity = granularityStr,
+            LastProcessedUtc = DateTime.UtcNow,
+            ConfigVersionProcessed = config.ConfigVersion,
+            ZoneCount = freshZones.Count,
+            Trend = trend
+        }, cancellationToken);
     }
 
     private async Task<string> GetTrendAsync(
         InstrumentName instrument,
         CandlestickGranularity trendGranularity,
+        TrendConfiguration trendConfig,
         CancellationToken cancellationToken)
     {
         try
         {
             var trendCandles = await _candleCache.GetCandlesAsync(instrument, trendGranularity, cancellationToken);
-            var trendManager = TrendManager.Create(trendCandles, _trendConfig);
+            var trendManager = TrendManager.Create(trendCandles, trendConfig);
             return trendManager.GetTrend();
         }
         catch (Exception ex)

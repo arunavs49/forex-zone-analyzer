@@ -76,6 +76,27 @@ public class TableStorageZoneStore : IZoneStore
         _logger.LogDebug("Upserted {Count} zones to Table Storage for {Partition}", zones.Count, partitionKey);
     }
 
+    public async Task ClearZonesAsync(string instrument, string granularity, CancellationToken cancellationToken)
+    {
+        var partitionKey = $"{instrument}_{granularity}";
+        var deleted = 0;
+
+        await foreach (var entity in _tableClient.QueryAsync<TableEntity>(
+            filter: $"PartitionKey eq '{partitionKey}'",
+            select: new[] { "PartitionKey", "RowKey" },
+            cancellationToken: cancellationToken))
+        {
+            // Keep the _trend_ row; only clear zone rows
+            if (entity.RowKey == "_trend_")
+                continue;
+
+            await _tableClient.DeleteEntityAsync(entity.PartitionKey, entity.RowKey, cancellationToken: cancellationToken);
+            deleted++;
+        }
+
+        _logger.LogInformation("Cleared {Count} zones from Table Storage for {Partition}", deleted, partitionKey);
+    }
+
     public async Task<string?> GetTrendAsync(string instrument, string granularity, CancellationToken cancellationToken)
     {
         var partitionKey = $"{instrument}_{granularity}";
