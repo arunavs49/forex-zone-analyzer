@@ -9,13 +9,13 @@ struct PairConfig: Identifiable, Codable, Hashable {
     let TrendGranularity: String
     let Enabled: Bool
     let EmailEnabled: Bool
-    let MinBaseLength: Int
-    let MaxBaseLength: Int
-    let MinLegInToBaseRangeRatio: Double
-    let MinLegOutToBaseRangeRatio: Double
-    let SwingLookback: Int
-    let TrendCandleCount: Int
-    let MinSwingPoints: Int
+    let MinBaseLength: Int?
+    let MaxBaseLength: Int?
+    let MinLegInToBaseRangeRatio: Double?
+    let MinLegOutToBaseRangeRatio: Double?
+    let SwingLookback: Int?
+    let TrendCandleCount: Int?
+    let MinSwingPoints: Int?
     let ConfigVersion: Int
     let UpdatedAtUtc: String?
 

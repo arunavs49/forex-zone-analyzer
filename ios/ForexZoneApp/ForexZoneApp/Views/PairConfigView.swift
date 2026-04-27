@@ -135,7 +135,7 @@ struct PairConfigRow: View {
             // Config summary
             HStack(spacing: 8) {
                 Text("Trend: \(config.TrendGranularity)")
-                Text("Base: \(config.MinBaseLength)-\(config.MaxBaseLength)")
+                Text("Base: \(config.MinBaseLength ?? 1)-\(config.MaxBaseLength ?? 6)")
                 Text("v\(config.ConfigVersion)")
             }
             .font(.system(size: 10, design: .monospaced))
@@ -193,13 +193,13 @@ struct PairConfigEditView: View {
         _enabled = State(initialValue: config.Enabled)
         _emailEnabled = State(initialValue: config.EmailEnabled)
         _trendGranularity = State(initialValue: config.TrendGranularity)
-        _minBaseLength = State(initialValue: config.MinBaseLength)
-        _maxBaseLength = State(initialValue: config.MaxBaseLength)
-        _minLegInRatio = State(initialValue: config.MinLegInToBaseRangeRatio)
-        _minLegOutRatio = State(initialValue: config.MinLegOutToBaseRangeRatio)
-        _swingLookback = State(initialValue: config.SwingLookback)
-        _trendCandleCount = State(initialValue: config.TrendCandleCount)
-        _minSwingPoints = State(initialValue: config.MinSwingPoints)
+        _minBaseLength = State(initialValue: config.MinBaseLength ?? 1)
+        _maxBaseLength = State(initialValue: config.MaxBaseLength ?? 6)
+        _minLegInRatio = State(initialValue: config.MinLegInToBaseRangeRatio ?? 1.0)
+        _minLegOutRatio = State(initialValue: config.MinLegOutToBaseRangeRatio ?? 1.0)
+        _swingLookback = State(initialValue: config.SwingLookback ?? 3)
+        _trendCandleCount = State(initialValue: config.TrendCandleCount ?? 60)
+        _minSwingPoints = State(initialValue: config.MinSwingPoints ?? 2)
     }
 
     var body: some View {
