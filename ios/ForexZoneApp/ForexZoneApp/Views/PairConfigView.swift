@@ -36,8 +36,14 @@ struct PairConfigListView: View {
                                 Task { await viewModel.toggleEnabled(config: config, settings: settings, authService: authService) }
                             } onToggleEmail: {
                                 Task { await viewModel.toggleEmail(config: config, settings: settings, authService: authService) }
-                            } onEdit: {
-                                editingConfig = config
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    editingConfig = config
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(.orange)
                             }
                         }
                     }
@@ -72,48 +78,40 @@ struct PairConfigRow: View {
     let config: PairConfig
     let onToggleEnabled: () -> Void
     let onToggleEmail: () -> Void
-    let onEdit: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(config.ZoneGranularity)
-                    .font(.headline)
+        NavigationLink(value: config) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(config.ZoneGranularity)
+                        .font(.headline)
 
-                Spacer()
+                    Spacer()
 
-                // Optimize button
-                NavigationLink(value: config) {
-                    Image(systemName: "bolt.fill")
-                        .font(.caption)
-                        .foregroundStyle(.purple)
+                    // Enabled toggle
+                    Button {
+                        onToggleEnabled()
+                    } label: {
+                        Text(config.Enabled ? "Enabled" : "Disabled")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(config.Enabled ? Color.green.opacity(0.15) : Color.gray.opacity(0.15))
+                            .foregroundStyle(config.Enabled ? .green : .secondary)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    // Email toggle
+                    Button {
+                        onToggleEmail()
+                    } label: {
+                        Image(systemName: config.EmailEnabled ? "envelope.fill" : "envelope")
+                            .font(.caption)
+                            .foregroundStyle(config.EmailEnabled ? .blue : .secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-
-                // Enabled toggle
-                Button {
-                    onToggleEnabled()
-                } label: {
-                    Text(config.Enabled ? "Enabled" : "Disabled")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(config.Enabled ? Color.green.opacity(0.15) : Color.gray.opacity(0.15))
-                        .foregroundStyle(config.Enabled ? .green : .secondary)
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-
-                // Email toggle
-                Button {
-                    onToggleEmail()
-                } label: {
-                    Image(systemName: config.EmailEnabled ? "envelope.fill" : "envelope")
-                        .font(.caption)
-                        .foregroundStyle(config.EmailEnabled ? .blue : .secondary)
-                }
-                .buttonStyle(.plain)
-            }
 
             // Status info
             HStack(spacing: 12) {
@@ -143,9 +141,8 @@ struct PairConfigRow: View {
             .font(.system(size: 10, design: .monospaced))
             .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 2)
-        .contentShape(Rectangle())
-        .onTapGesture { onEdit() }
+            .padding(.vertical, 2)
+        } // NavigationLink
     }
 
     private func formatRelativeTime(_ dateString: String) -> String {
