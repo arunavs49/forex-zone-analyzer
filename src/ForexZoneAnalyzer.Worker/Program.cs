@@ -21,11 +21,13 @@ if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSingleton<IZoneStore, InMemoryZoneStore>();
     builder.Services.AddSingleton<IConfigStore, InMemoryConfigStore>();
+    builder.Services.AddSingleton<ICandleStorageCache, InMemoryCandleStorageCache>();
 }
 else
 {
     builder.Services.AddSingleton<IZoneStore, TableStorageZoneStore>();
     builder.Services.AddSingleton<IConfigStore, TableStorageConfigStore>();
+    builder.Services.AddSingleton<ICandleStorageCache, TableStorageCandleCache>();
 }
 
 // Notification service: email if configured, otherwise console
@@ -39,8 +41,9 @@ else
     builder.Services.AddSingleton<INotificationService, ConsoleNotificationService>();
 }
 
-// Background worker
+// Background workers
 builder.Services.AddHostedService<ZoneMonitorService>();
+builder.Services.AddHostedService<StrategyJobService>();
 
 var host = builder.Build();
 

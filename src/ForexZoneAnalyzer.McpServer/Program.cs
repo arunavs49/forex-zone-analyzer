@@ -81,6 +81,43 @@ builder.Services.AddSingleton(sp =>
     return new ForexZoneAnalyzer.McpServer.Services.ConfigTableClient(configClient, statusClient);
 });
 
+// Azure Storage clients for strategy runs
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var connectionString = config["Storage:ConnectionString"];
+
+    var clientOptions = new TableClientOptions();
+    clientOptions.Retry.MaxRetries = 5;
+    clientOptions.Retry.Mode = Azure.Core.RetryMode.Exponential;
+    clientOptions.Retry.Delay = TimeSpan.FromSeconds(1);
+    clientOptions.Retry.MaxDelay = TimeSpan.FromSeconds(30);
+
+    TableClient runsClient;
+    Azure.Storage.Queues.QueueClient queueClient;
+
+    if (!string.IsNullOrEmpty(connectionString))
+    {
+        runsClient = new TableClient(connectionString, "strategyruns", clientOptions);
+        queueClient = new Azure.Storage.Queues.QueueClient(connectionString, "strategy-jobs");
+    }
+    else
+    {
+        var accountName = config["Storage:AccountName"];
+        var endpoint = new Uri($"https://{accountName}.table.core.windows.net");
+        var credential = new DefaultAzureCredential();
+        runsClient = new TableClient(endpoint, "strategyruns", credential, clientOptions);
+        queueClient = new Azure.Storage.Queues.QueueClient(
+            new Uri($"https://{accountName}.queue.core.windows.net/strategy-jobs"),
+            credential);
+    }
+
+    runsClient.CreateIfNotExists();
+    queueClient.CreateIfNotExists();
+
+    return new ForexZoneAnalyzer.McpServer.Services.StrategyTableClient(runsClient, queueClient);
+});
+
 // MCP server with HTTP transport + auto-discovered tools
 builder.Services
     .AddMcpServer(options =>
