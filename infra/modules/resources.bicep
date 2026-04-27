@@ -276,9 +276,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) 
         targetPort: 8080
         transport: 'auto'
         allowInsecure: false
-        stickySessions: {
-          affinity: 'sticky'
-        }
       }
       registries: [
         {
@@ -342,7 +339,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) 
       ]
       scale: {
         minReplicas: 0
-        maxReplicas: 3
+        maxReplicas: 1
         rules: [
           {
             name: 'http-rule'
