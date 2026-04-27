@@ -302,6 +302,60 @@ class ForexDataService: ObservableObject {
         return try JSONDecoder().decode(PairStatusResponse.self, from: data)
     }
 
+    // MARK: - Strategy Optimization
+
+    /// Start a strategy optimization run
+    func startStrategyRun(instrument: String, granularity: String, lookbackMonths: Int = 6) async throws -> StartRunResponse {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "start_strategy_run",
+            arguments: ["instrument": instrument, "granularity": granularity, "lookbackMonths": lookbackMonths]
+        )
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(StartRunResponse.self, from: data)
+    }
+
+    /// Get status and results of a strategy run
+    func getStrategyRun(instrument: String, granularity: String, runId: String) async throws -> StrategyRun {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "get_strategy_run",
+            arguments: ["instrument": instrument, "granularity": granularity, "runId": runId]
+        )
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(StrategyRun.self, from: data)
+    }
+
+    /// List all strategy runs for a pair+TF
+    func listStrategyRuns(instrument: String, granularity: String) async throws -> StrategyRunListResponse {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "list_strategy_runs",
+            arguments: ["instrument": instrument, "granularity": granularity]
+        )
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(StrategyRunListResponse.self, from: data)
+    }
+
+    /// Apply best config from a strategy run
+    func applyStrategyResult(instrument: String, granularity: String, runId: String) async throws -> PairConfigUpdateResponse {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "apply_strategy_result",
+            arguments: ["instrument": instrument, "granularity": granularity, "runId": runId]
+        )
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(PairConfigUpdateResponse.self, from: data)
+    }
+
     /// Place a limit order derived from a zone's parameters
     func placeLimitOrder(
         accountId: String,

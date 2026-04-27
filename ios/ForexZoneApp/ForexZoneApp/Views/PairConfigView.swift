@@ -55,6 +55,9 @@ struct PairConfigListView: View {
         .sheet(item: $editingConfig) { config in
             PairConfigEditView(config: config, viewModel: viewModel)
         }
+        .navigationDestination(for: PairConfig.self) { config in
+            StrategyRunView(instrument: config.Instrument, granularity: config.ZoneGranularity)
+        }
     }
 
     private var groupedConfigs: [(key: String, value: [PairConfig])] {
@@ -78,6 +81,14 @@ struct PairConfigRow: View {
                     .font(.headline)
 
                 Spacer()
+
+                // Optimize button
+                NavigationLink(value: config) {
+                    Image(systemName: "bolt.fill")
+                        .font(.caption)
+                        .foregroundStyle(.purple)
+                }
+                .buttonStyle(.plain)
 
                 // Enabled toggle
                 Button {
