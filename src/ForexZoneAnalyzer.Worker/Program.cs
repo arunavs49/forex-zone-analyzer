@@ -45,6 +45,10 @@ else
 builder.Services.AddHostedService<ZoneMonitorService>();
 builder.Services.AddHostedService<StrategyJobService>();
 
+// Data cleanup
+builder.Services.Configure<CleanupSettings>(builder.Configuration.GetSection("CleanupSettings"));
+builder.Services.AddHostedService<DataCleanupService>();
+
 var host = builder.Build();
 
 // Seed config store if empty (EUR_USD H1 with defaults)
