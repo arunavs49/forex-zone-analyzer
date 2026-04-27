@@ -6,6 +6,7 @@ struct PairConfigListView: View {
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel = ConfigViewModel()
     @State private var editingConfig: PairConfig?
+    @State private var showAddConfig = false
 
     var body: some View {
         List {
@@ -52,6 +53,15 @@ struct PairConfigListView: View {
         }
         .navigationTitle("Pair Configs")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showAddConfig = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
         .task {
             await viewModel.loadConfigs(settings: settings, authService: authService)
         }
@@ -60,6 +70,9 @@ struct PairConfigListView: View {
         }
         .sheet(item: $editingConfig) { config in
             PairConfigEditView(config: config, viewModel: viewModel)
+        }
+        .sheet(isPresented: $showAddConfig) {
+            AddPairConfigView(viewModel: viewModel)
         }
         .navigationDestination(for: PairConfig.self) { config in
             StrategyRunView(instrument: config.Instrument, granularity: config.ZoneGranularity)
@@ -275,6 +288,96 @@ struct PairConfigEditView: View {
             minLegInRatio: minLegInRatio, minLegOutRatio: minLegOutRatio,
             swingLookback: swingLookback, trendCandleCount: trendCandleCount,
             minSwingPoints: minSwingPoints,
+            settings: settings, authService: authService
+        )
+        isSaving = false
+        if viewModel.error == nil {
+            dismiss()
+        }
+    }
+}
+
+// MARK: - Add New Config
+
+struct AddPairConfigView: View {
+    @ObservedObject var viewModel: ConfigViewModel
+    @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var authService: AuthService
+    @Environment(\.dismiss) var dismiss
+
+    static let instruments = [
+        "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD",
+        "NZD_USD", "USD_CAD", "USD_CHF"
+    ]
+
+    static let timeframes: [(zone: String, trend: String)] = [
+        ("M5", "M30"), ("M15", "H1"), ("M30", "H4"),
+        ("H1", "H8"), ("H4", "D"), ("D", "W")
+    ]
+
+    @State private var selectedInstrument = "EUR_USD"
+    @State private var selectedTFIndex = 3 // H1 default
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Currency Pair") {
+                    Picker("Instrument", selection: $selectedInstrument) {
+                        ForEach(Self.instruments, id: \.self) { inst in
+                            Text(inst.replacingOccurrences(of: "_", with: "/")).tag(inst)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(height: 120)
+                }
+
+                Section("Timeframe") {
+                    Picker("Zone Timeframe", selection: $selectedTFIndex) {
+                        ForEach(0..<Self.timeframes.count, id: \.self) { idx in
+                            Text("\(Self.timeframes[idx].zone) (trend: \(Self.timeframes[idx].trend))")
+                                .tag(idx)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(height: 120)
+                }
+
+                if let error = viewModel.error {
+                    Section {
+                        Text(error).foregroundStyle(.red).font(.caption)
+                    }
+                }
+            }
+            .navigationTitle("Add Config")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        Task { await addConfig() }
+                    }
+                    .disabled(isSaving)
+                }
+            }
+        }
+    }
+
+    private func addConfig() async {
+        isSaving = true
+        let tf = Self.timeframes[selectedTFIndex]
+
+        await viewModel.updateConfig(
+            instrument: selectedInstrument,
+            granularity: tf.zone,
+            trendGranularity: tf.trend,
+            enabled: true, emailEnabled: false,
+            minBaseLength: 1, maxBaseLength: 6,
+            minLegInRatio: 1.0, minLegOutRatio: 1.0,
+            swingLookback: 3, trendCandleCount: 60,
+            minSwingPoints: 2,
             settings: settings, authService: authService
         )
         isSaving = false
