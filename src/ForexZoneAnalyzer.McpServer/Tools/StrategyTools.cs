@@ -4,6 +4,7 @@ using Azure.Data.Tables;
 using ForexZoneAnalyzer.McpServer.Services;
 using ModelContextProtocol.Server;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace ForexZoneAnalyzer.McpServer.Tools;
 
@@ -108,15 +109,15 @@ public sealed class StrategyTools
 
             var zoneConfigJson = entity.GetString("BestZoneConfig");
             if (zoneConfigJson != null)
-                result["BestZoneConfig"] = System.Text.Json.JsonSerializer.Deserialize<object>(zoneConfigJson);
+                result["BestZoneConfig"] = JToken.Parse(zoneConfigJson);
 
             var trendConfigJson = entity.GetString("BestTrendConfig");
             if (trendConfigJson != null)
-                result["BestTrendConfig"] = System.Text.Json.JsonSerializer.Deserialize<object>(trendConfigJson);
+                result["BestTrendConfig"] = JToken.Parse(trendConfigJson);
 
             var topResultsJson = entity.GetString("TopResults");
             if (topResultsJson != null)
-                result["TopResults"] = System.Text.Json.JsonSerializer.Deserialize<object>(topResultsJson);
+                result["TopResults"] = JToken.Parse(topResultsJson);
         }
 
         return JsonConvert.SerializeObject(result, Formatting.Indented);
