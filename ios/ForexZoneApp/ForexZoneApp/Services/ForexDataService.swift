@@ -206,6 +206,102 @@ class ForexDataService: ObservableObject {
         )
     }
 
+    // MARK: - Pair Config Management
+
+    /// List all pair+TF configurations with status
+    func listPairConfigs() async throws -> PairConfigListResponse {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(name: "list_pair_configs", arguments: [:] as [String: String])
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(PairConfigListResponse.self, from: data)
+    }
+
+    /// Get config + status for a specific pair+TF
+    func getPairConfig(instrument: String, granularity: String) async throws -> PairConfig {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "get_pair_config",
+            arguments: ["instrument": instrument, "granularity": granularity]
+        )
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(PairConfig.self, from: data)
+    }
+
+    /// Create or update a pair+TF configuration
+    func updatePairConfig(
+        instrument: String, granularity: String, trendGranularity: String,
+        enabled: Bool, emailEnabled: Bool,
+        minBaseLength: Int, maxBaseLength: Int,
+        minLegInRatio: Double, minLegOutRatio: Double,
+        swingLookback: Int, trendCandleCount: Int, minSwingPoints: Int
+    ) async throws -> PairConfigUpdateResponse {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "update_pair_config",
+            arguments: [
+                "instrument": instrument,
+                "granularity": granularity,
+                "trendGranularity": trendGranularity,
+                "enabled": enabled,
+                "emailEnabled": emailEnabled,
+                "minBaseLength": minBaseLength,
+                "maxBaseLength": maxBaseLength,
+                "minLegInToBaseRangeRatio": minLegInRatio,
+                "minLegOutToBaseRangeRatio": minLegOutRatio,
+                "swingLookback": swingLookback,
+                "trendCandleCount": trendCandleCount,
+                "minSwingPoints": minSwingPoints
+            ]
+        )
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(PairConfigUpdateResponse.self, from: data)
+    }
+
+    /// Toggle processing enabled/disabled
+    func setPairEnabled(instrument: String, granularity: String, enabled: Bool) async throws -> PairConfigUpdateResponse {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "set_pair_enabled",
+            arguments: ["instrument": instrument, "granularity": granularity, "enabled": enabled]
+        )
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(PairConfigUpdateResponse.self, from: data)
+    }
+
+    /// Toggle email alerts
+    func setPairEmailEnabled(instrument: String, granularity: String, emailEnabled: Bool) async throws -> PairConfigUpdateResponse {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "set_pair_email_enabled",
+            arguments: ["instrument": instrument, "granularity": granularity, "emailEnabled": emailEnabled]
+        )
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(PairConfigUpdateResponse.self, from: data)
+    }
+
+    /// Get processing status for a pair+TF
+    func getPairStatus(instrument: String, granularity: String) async throws -> PairStatusResponse {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "get_pair_status",
+            arguments: ["instrument": instrument, "granularity": granularity]
+        )
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(PairStatusResponse.self, from: data)
+    }
+
     /// Place a limit order derived from a zone's parameters
     func placeLimitOrder(
         accountId: String,

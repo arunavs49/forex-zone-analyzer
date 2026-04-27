@@ -9,6 +9,7 @@ class ChartViewModel: ObservableObject {
     @Published var trend: String = ""
     @Published var isLoading = false
     @Published var error: String?
+    @Published var pairStatus: PairStatusResponse?
 
     let instrument: Instrument
     @Published var granularity: Granularity
@@ -131,6 +132,16 @@ class ChartViewModel: ObservableObject {
             supplyZones = storedResponse.supplyZones
             demandZones = storedResponse.demandZones
             trend = storedResponse.trend ?? "Unknown"
+
+            // Fetch pair status (non-blocking — don't fail if unavailable)
+            do {
+                pairStatus = try await service.getPairStatus(
+                    instrument: instrument.rawValue,
+                    granularity: granularity.rawValue
+                )
+            } catch {
+                pairStatus = nil
+            }
         } catch {
             self.error = error.localizedDescription
         }

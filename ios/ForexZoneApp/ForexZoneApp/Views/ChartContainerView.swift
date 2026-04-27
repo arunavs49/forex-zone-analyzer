@@ -27,10 +27,15 @@ struct ChartContainerView: View {
                 Task { await viewModel.loadData(settings: settings, authService: authService) }
             }
 
-            // Info bar: trend + zone count
+            // Info bar: trend + zone count + processing status
             if !viewModel.trend.isEmpty {
                 HStack(spacing: 8) {
                     TrendBadge(trend: viewModel.trend)
+
+                    // Processing status indicator
+                    if let status = viewModel.pairStatus, status.Error == nil {
+                        ProcessingStatusBadge(lastProcessed: status.LastProcessedUtc)
+                    }
 
                     Spacer()
 
@@ -283,5 +288,47 @@ struct TrendBadge: View {
         case "down": return .red
         default: return .orange
         }
+    }
+}
+
+// MARK: - Processing status badge
+
+struct ProcessingStatusBadge: View {
+    let lastProcessed: String?
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Circle()
+                .fill(.blue)
+                .frame(width: 5, height: 5)
+            Text(relativeTime)
+                .font(.system(size: 9, weight: .medium, design: .monospaced))
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(
+            Capsule()
+                .fill(.blue.opacity(0.1))
+                .overlay(Capsule().strokeBorder(.blue.opacity(0.2), lineWidth: 0.5))
+        )
+        .foregroundStyle(.blue)
+    }
+
+    private var relativeTime: String {
+        guard let dateString = lastProcessed else { return "pending" }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = formatter.date(from: dateString)
+        if date == nil {
+            formatter.formatOptions = [.withInternetDateTime]
+            date = formatter.date(from: dateString)
+        }
+        guard let d = date else { return "pending" }
+
+        let interval = Date().timeIntervalSince(d)
+        if interval < 60 { return "now" }
+        if interval < 3600 { return "\(Int(interval / 60))m" }
+        if interval < 86400 { return "\(Int(interval / 3600))h" }
+        return "\(Int(interval / 86400))d"
     }
 }

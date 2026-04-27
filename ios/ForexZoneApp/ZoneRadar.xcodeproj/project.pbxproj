@@ -31,6 +31,9 @@
 		F1D6EDF4FA0E4762A43E1002 /* ZoneOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FDAC391C3FA4AF0409A16B1 /* ZoneOverlayView.swift */; };
 		F331968B5B468AE4FC135A5B /* ZonePollingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E78630E5A49CFD7002970E34 /* ZonePollingService.swift */; };
 		F554E4E3AD1E42F8816866C3 /* ZoneAnalysisResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA95DEFC80C86FD4B62457D3 /* ZoneAnalysisResponse.swift */; };
+		158C3E66215C40EE9FB72184 /* PairConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70B5B12C6184982B1FF9399 /* PairConfig.swift */; };
+		CEE8E75C624B48F68E7A81B0 /* ConfigViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F120CE55D984387BD06BB11 /* ConfigViewModel.swift */; };
+		49053970795B42DC83A223A3 /* PairConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FB69041D264789933598BA /* PairConfigView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +63,9 @@
 		F496625415C8A6311FDF59D1 /* ChartViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartViewModel.swift; sourceTree = "<group>"; };
 		FEAD977CFF06F51AB0BEC61B /* ZoneRadar.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ZoneRadar.entitlements; sourceTree = "<group>"; };
 		FEC94E9A05DAA12EC822919E /* InstrumentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstrumentListView.swift; sourceTree = "<group>"; };
+		F70B5B12C6184982B1FF9399 /* PairConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairConfig.swift; sourceTree = "<group>"; };
+		9F120CE55D984387BD06BB11 /* ConfigViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigViewModel.swift; sourceTree = "<group>"; };
+		A7FB69041D264789933598BA /* PairConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairConfigView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -77,6 +83,7 @@
 		02C2106B20629007310AD8C0 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				A7FB69041D264789933598BA /* PairConfigView.swift */,
 				4FFE730796CD79878CD88C8F /* ChartContainerView.swift */,
 				FEC94E9A05DAA12EC822919E /* InstrumentListView.swift */,
 				ED361730E8B84EFBA2625B2B /* PendingOrdersView.swift */,
@@ -123,6 +130,7 @@
 		912510C3F9D750C75B8B07BB /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				F70B5B12C6184982B1FF9399 /* PairConfig.swift */,
 				4421221952B84155B9CE838F /* AppSettings.swift */,
 				6047CF6CAD8D4B82A5C41E88 /* Candle.swift */,
 				66A7C9770AB49118E01C6F13 /* Instrument.swift */,
@@ -146,6 +154,7 @@
 		E1241383FD4AE21289A8835A /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				9F120CE55D984387BD06BB11 /* ConfigViewModel.swift */,
 				F496625415C8A6311FDF59D1 /* ChartViewModel.swift */,
 			);
 			path = ViewModels;
@@ -237,6 +246,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49053970795B42DC83A223A3 /* PairConfigView.swift in Sources */,
+				CEE8E75C624B48F68E7A81B0 /* ConfigViewModel.swift in Sources */,
+				158C3E66215C40EE9FB72184 /* PairConfig.swift in Sources */,
 				43692F388A757550F0CD6CCB /* AppSettings.swift in Sources */,
 				495933DD00F7D80B61C11335 /* AuthService.swift in Sources */,
 				8127845846130D5B24700AC3 /* Candle.swift in Sources */,
