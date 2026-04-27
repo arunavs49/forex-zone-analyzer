@@ -276,6 +276,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = if (deployApp) 
         targetPort: 8080
         transport: 'auto'
         allowInsecure: false
+        stickySessions: {
+          affinity: 'sticky'
+        }
       }
       registries: [
         {
