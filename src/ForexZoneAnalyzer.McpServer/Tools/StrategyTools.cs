@@ -123,6 +123,51 @@ public sealed class StrategyTools
         return JsonConvert.SerializeObject(result, Formatting.Indented);
     }
 
+    [McpServerTool(Name = "list_recent_strategy_runs"), Description("List the most recent strategy optimization runs across all instruments and timeframes, sorted by requested time descending.")]
+    public static async Task<string> ListRecentStrategyRuns(
+        StrategyTableClient strategyClient,
+        [Description("Maximum number of runs to return (default 10)")] int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var allRuns = new List<(DateTime requested, object run)>();
+
+        await foreach (var entity in strategyClient.Runs.QueryAsync<TableEntity>(
+            cancellationToken: cancellationToken))
+        {
+            var pk = entity.PartitionKey; // e.g. "EUR_USD_H1"
+            var parts = pk.Split('_');
+            var instrument = parts.Length >= 3 ? $"{parts[0]}_{parts[1]}" : pk;
+            var granularity = parts.Length >= 3 ? parts[2] : "";
+
+            var requested = entity.GetDateTime("RequestedUtc") ?? DateTime.MinValue;
+            allRuns.Add((requested, new
+            {
+                Instrument = instrument,
+                Granularity = granularity,
+                RunId = entity.RowKey,
+                Status = entity.GetString("Status"),
+                RequestedUtc = requested.ToString("o"),
+                CompletedUtc = entity.GetDateTime("CompletedUtc")?.ToString("o"),
+                LookbackMonths = entity.GetInt32("LookbackMonths"),
+                BestScore = entity.GetDouble("BestScore"),
+                BestWinRate = entity.GetDouble("BestWinRate"),
+                Error = entity.GetString("Error")
+            }));
+        }
+
+        var recentRuns = allRuns
+            .OrderByDescending(r => r.requested)
+            .Take(limit)
+            .Select(r => r.run)
+            .ToList();
+
+        return JsonConvert.SerializeObject(new
+        {
+            TotalRuns = recentRuns.Count,
+            Runs = recentRuns
+        }, Formatting.Indented);
+    }
+
     [McpServerTool(Name = "list_strategy_runs"), Description("List all strategy optimization runs for a specific instrument and timeframe, most recent first.")]
     public static async Task<string> ListStrategyRuns(
         StrategyTableClient strategyClient,

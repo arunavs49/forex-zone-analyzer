@@ -215,24 +215,56 @@ struct StrategyResultsView: View {
                 if let topResults = run.TopResults, !topResults.isEmpty {
                     Section("Top Configurations") {
                         ForEach(Array(topResults.enumerated()), id: \.offset) { idx, result in
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack {
-                                    Text("#\(idx + 1)")
-                                        .font(.caption.weight(.bold))
-                                    Spacer()
-                                    Text(String(format: "Score: %.4f", result.Score))
-                                        .font(.caption)
+                            DisclosureGroup {
+                                // Zone config details
+                                if let zone = result.Zone {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Zone Config")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.secondary)
+                                        HStack(spacing: 12) {
+                                            Text("Base: \(zone.MinBaseLength ?? 0)-\(zone.MaxBaseLength ?? 0)")
+                                            Text("LegIn: \(String(format: "%.2f", zone.MinLegInToBaseRangeRatio ?? 0))")
+                                            Text("LegOut: \(String(format: "%.2f", zone.MinLegOutToBaseRangeRatio ?? 0))")
+                                        }
+                                        .font(.system(size: 10, design: .monospaced))
+                                    }
                                 }
-                                HStack(spacing: 8) {
-                                    Text("Win: \(String(format: "%.1f%%", result.WinRate * 100))")
-                                    Text("Zones: \(result.TradedZones)")
-                                    Text("RR: \(String(format: "%.2f", result.AverageRR))")
-                                    Text("W:\(result.Wins) L:\(result.Losses) T:\(result.Timeouts)")
+
+                                // Trend config details
+                                if let trend = result.Trend {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Trend Config")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.secondary)
+                                        HStack(spacing: 12) {
+                                            Text("Swing: \(trend.SwingLookback ?? 0)")
+                                            Text("Candles: \(trend.TrendCandleCount ?? 0)")
+                                            Text("MinPts: \(trend.MinSwingPoints ?? 0)")
+                                        }
+                                        .font(.system(size: 10, design: .monospaced))
+                                    }
                                 }
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack {
+                                        Text("#\(idx + 1)")
+                                            .font(.caption.weight(.bold))
+                                        Spacer()
+                                        Text(String(format: "Score: %.4f", result.Score))
+                                            .font(.caption)
+                                    }
+                                    HStack(spacing: 8) {
+                                        Text("Win: \(String(format: "%.1f%%", result.WinRate * 100))")
+                                        Text("Zones: \(result.TradedZones)")
+                                        Text("RR: \(String(format: "%.2f", result.AverageRR))")
+                                        Text("W:\(result.Wins) L:\(result.Losses) T:\(result.Timeouts)")
+                                    }
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 2)
                             }
-                            .padding(.vertical, 2)
                         }
                     }
                 }

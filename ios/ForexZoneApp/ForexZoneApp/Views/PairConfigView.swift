@@ -7,6 +7,7 @@ struct PairConfigListView: View {
     @StateObject private var viewModel = ConfigViewModel()
     @State private var editingConfig: PairConfig?
     @State private var showAddConfig = false
+    @State private var showDisabled = false
 
     var body: some View {
         List {
@@ -26,26 +27,63 @@ struct PairConfigListView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-            } else if viewModel.configs.isEmpty {
-                Text("No pair configurations found.")
-                    .foregroundStyle(.secondary)
             } else {
-                ForEach(groupedConfigs, id: \.key) { instrument, configs in
-                    Section(header: Text(instrument.replacingOccurrences(of: "_", with: "/"))) {
-                        ForEach(configs) { config in
-                            PairConfigRow(config: config) {
-                                Task { await viewModel.toggleEnabled(config: config, settings: settings, authService: authService) }
-                            } onToggleEmail: {
-                                Task { await viewModel.toggleEmail(config: config, settings: settings, authService: authService) }
+                // Enabled configs
+                let enabled = groupedConfigs(enabled: true)
+                if enabled.isEmpty {
+                    Section {
+                        Text("No enabled configurations.")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    ForEach(enabled, id: \.key) { instrument, configs in
+                        Section(header: Text(instrument.replacingOccurrences(of: "_", with: "/"))) {
+                            ForEach(configs) { config in
+                                EnabledConfigRow(config: config)
+                                    .swipeActions(edge: .leading) {
+                                        Button {
+                                            editingConfig = config
+                                        } label: {
+                                            Label("Edit", systemImage: "pencil")
+                                        }
+                                        .tint(.orange)
+                                    }
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                        Button(role: .destructive) {
+                                            Task { await viewModel.toggleEnabled(config: config, settings: settings, authService: authService) }
+                                        } label: {
+                                            Label("Disable", systemImage: "xmark.circle")
+                                        }
+                                    }
                             }
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    editingConfig = config
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
+                        }
+                    }
+                }
+
+                // Disabled configs (collapsible)
+                let disabled = groupedConfigs(enabled: false)
+                if !disabled.isEmpty {
+                    Section {
+                        DisclosureGroup(isExpanded: $showDisabled) {
+                            ForEach(disabled, id: \.key) { instrument, configs in
+                                ForEach(configs) { config in
+                                    DisabledConfigRow(config: config) {
+                                        Task { await viewModel.toggleEnabled(config: config, settings: settings, authService: authService) }
+                                    }
+                                    .swipeActions(edge: .leading) {
+                                        Button {
+                                            editingConfig = config
+                                        } label: {
+                                            Label("Edit", systemImage: "pencil")
+                                        }
+                                        .tint(.orange)
+                                    }
                                 }
-                                .tint(.orange)
                             }
+                        } label: {
+                            Text("Disabled (\(disabled.flatMap(\.value).count))")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -74,66 +112,36 @@ struct PairConfigListView: View {
         .sheet(isPresented: $showAddConfig) {
             AddPairConfigView(viewModel: viewModel)
         }
-        .navigationDestination(for: PairConfig.self) { config in
-            StrategyRunView(instrument: config.Instrument, granularity: config.ZoneGranularity)
-        }
     }
 
-    private var groupedConfigs: [(key: String, value: [PairConfig])] {
-        Dictionary(grouping: viewModel.configs, by: { $0.Instrument })
+    private func groupedConfigs(enabled: Bool) -> [(key: String, value: [PairConfig])] {
+        let filtered = viewModel.configs.filter { $0.Enabled == enabled }
+        return Dictionary(grouping: filtered, by: { $0.Instrument })
             .sorted { $0.key < $1.key }
     }
 }
 
-// MARK: - Config Row
+// MARK: - Enabled Config Row
 
-struct PairConfigRow: View {
+struct EnabledConfigRow: View {
     let config: PairConfig
-    let onToggleEnabled: () -> Void
-    let onToggleEmail: () -> Void
 
     var body: some View {
-        NavigationLink(value: config) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(config.ZoneGranularity)
-                        .font(.headline)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(config.ZoneGranularity)
+                    .font(.headline)
 
-                    Spacer()
+                Spacer()
 
-                    // Enabled toggle
-                    Button {
-                        onToggleEnabled()
-                    } label: {
-                        Text(config.Enabled ? "Enabled" : "Disabled")
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(config.Enabled ? Color.green.opacity(0.15) : Color.gray.opacity(0.15))
-                            .foregroundStyle(config.Enabled ? .green : .secondary)
-                            .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-
-                    // Email toggle
-                    Button {
-                        onToggleEmail()
-                    } label: {
-                        Image(systemName: config.EmailEnabled ? "envelope.fill" : "envelope")
-                            .font(.caption)
-                            .foregroundStyle(config.EmailEnabled ? .blue : .secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-            // Status info
-            HStack(spacing: 12) {
                 if let trend = config.Trend {
                     TrendBadge(trend: trend)
                 }
+            }
 
+            HStack(spacing: 12) {
                 if let zoneCount = config.ZoneCount {
-                    Text("\(zoneCount) zones")
+                    Label("\(zoneCount) zones", systemImage: "square.stack.3d.up")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -147,22 +155,28 @@ struct PairConfigRow: View {
 
             // Config summary
             HStack(spacing: 8) {
-                Text("Trend: \(config.TrendGranularity)")
                 Text("Base: \(config.MinBaseLength ?? 1)-\(config.MaxBaseLength ?? 6)")
+                Text("LegIn: \(String(format: "%.1f", config.MinLegInToBaseRangeRatio ?? 1.0))")
+                Text("LegOut: \(String(format: "%.1f", config.MinLegOutToBaseRangeRatio ?? 1.0))")
+                Spacer()
                 Text("v\(config.ConfigVersion)")
+
+                if config.EmailEnabled {
+                    Image(systemName: "envelope.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.blue)
+                }
             }
             .font(.system(size: 10, design: .monospaced))
             .foregroundStyle(.tertiary)
         }
-            .padding(.vertical, 2)
-        } // NavigationLink
+        .padding(.vertical, 2)
     }
 
     private func formatRelativeTime(_ dateString: String) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         guard let date = formatter.date(from: dateString) else {
-            // Try without fractional seconds
             formatter.formatOptions = [.withInternetDateTime]
             guard let date = formatter.date(from: dateString) else { return dateString }
             return relativeString(from: date)
@@ -176,6 +190,42 @@ struct PairConfigRow: View {
         if interval < 3600 { return "\(Int(interval / 60))m ago" }
         if interval < 86400 { return "\(Int(interval / 3600))h ago" }
         return "\(Int(interval / 86400))d ago"
+    }
+}
+
+// MARK: - Disabled Config Row
+
+struct DisabledConfigRow: View {
+    let config: PairConfig
+    let onEnable: () -> Void
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(config.Instrument.replacingOccurrences(of: "_", with: "/")) \(config.ZoneGranularity)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("v\(config.ConfigVersion)")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+            }
+
+            Spacer()
+
+            Button {
+                onEnable()
+            } label: {
+                Text("Enable")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.green.opacity(0.15))
+                    .foregroundStyle(.green)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 2)
     }
 }
 

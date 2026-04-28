@@ -5,6 +5,7 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var showPendingOrders = false
     @State private var showPairConfigs = false
+    @State private var showOptimizations = false
 
     var body: some View {
         NavigationStack {
@@ -21,6 +22,11 @@ struct ContentView: View {
                                 showPairConfigs = true
                             } label: {
                                 Image(systemName: "slider.horizontal.3")
+                            }
+                            Button {
+                                showOptimizations = true
+                            } label: {
+                                Image(systemName: "chart.bar.xaxis.ascending")
                             }
                         }
                     }
@@ -41,6 +47,11 @@ struct ContentView: View {
                 .sheet(isPresented: $showPairConfigs) {
                     NavigationStack {
                         PairConfigListView()
+                    }
+                }
+                .sheet(isPresented: $showOptimizations) {
+                    NavigationStack {
+                        OptimizationRunsView()
                     }
                 }
         }

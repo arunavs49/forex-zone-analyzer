@@ -59,6 +59,8 @@ struct StrategyRunSummary: Identifiable, Codable {
     var id: String { RunId ?? UUID().uuidString }
 
     let RunId: String?
+    let Instrument: String?
+    let Granularity: String?
     let Status: String?
     let RequestedUtc: String?
     let CompletedUtc: String?
@@ -66,6 +68,11 @@ struct StrategyRunSummary: Identifiable, Codable {
     let BestScore: Double?
     let BestWinRate: Double?
     let Error: String?
+}
+
+struct RecentStrategyRunListResponse: Codable {
+    let TotalRuns: Int
+    let Runs: [StrategyRunSummary]
 }
 
 struct StartRunResponse: Codable {

@@ -343,6 +343,19 @@ class ForexDataService: ObservableObject {
         return try JSONDecoder().decode(StrategyRunListResponse.self, from: data)
     }
 
+    /// List recent strategy runs across all pairs
+    func listRecentStrategyRuns(limit: Int = 10) async throws -> RecentStrategyRunListResponse {
+        try await ensureInitialized()
+        guard let client = client else { throw MCPError.invalidURL }
+
+        let json = try await client.callTool(
+            name: "list_recent_strategy_runs",
+            arguments: ["limit": limit]
+        )
+        let data = Data(json.utf8)
+        return try JSONDecoder().decode(RecentStrategyRunListResponse.self, from: data)
+    }
+
     /// Apply best config from a strategy run
     func applyStrategyResult(instrument: String, granularity: String, runId: String) async throws -> PairConfigUpdateResponse {
         try await ensureInitialized()

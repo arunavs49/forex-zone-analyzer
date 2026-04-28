@@ -37,6 +37,8 @@
 		B8DAE29BA3E64D8CA59E503A /* StrategyRun.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D4CD2DFF0694E64B9F332D7 /* StrategyRun.swift */; };
 		56115C53B6A54E558A72174C /* StrategyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224533E1942644B0AC826831 /* StrategyViewModel.swift */; };
 		B0D0B27236A74B7AAC067BE4 /* StrategyRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BD7B4857435449D969A76D7 /* StrategyRunView.swift */; };
+		68A07868E6FB4728B0D0BD7E /* OptimizationRunsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E176B0C0D4B440FDAE083189 /* OptimizationRunsView.swift */; };
+		A5B6DC2BAE734C12A8CAB89E /* OptimizationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED0114D495CB4B129CB59083 /* OptimizationViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -72,6 +74,8 @@
 		5D4CD2DFF0694E64B9F332D7 /* StrategyRun.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrategyRun.swift; sourceTree = "<group>"; };
 		224533E1942644B0AC826831 /* StrategyViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrategyViewModel.swift; sourceTree = "<group>"; };
 		3BD7B4857435449D969A76D7 /* StrategyRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrategyRunView.swift; sourceTree = "<group>"; };
+		E176B0C0D4B440FDAE083189 /* OptimizationRunsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizationRunsView.swift; sourceTree = "<group>"; };
+		ED0114D495CB4B129CB59083 /* OptimizationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizationViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,6 +94,7 @@
 			isa = PBXGroup;
 			children = (
 				3BD7B4857435449D969A76D7 /* StrategyRunView.swift */,
+				E176B0C0D4B440FDAE083189 /* OptimizationRunsView.swift */,
 				A7FB69041D264789933598BA /* PairConfigView.swift */,
 				4FFE730796CD79878CD88C8F /* ChartContainerView.swift */,
 				FEC94E9A05DAA12EC822919E /* InstrumentListView.swift */,
@@ -163,6 +168,7 @@
 			isa = PBXGroup;
 			children = (
 				224533E1942644B0AC826831 /* StrategyViewModel.swift */,
+				ED0114D495CB4B129CB59083 /* OptimizationViewModel.swift */,
 				9F120CE55D984387BD06BB11 /* ConfigViewModel.swift */,
 				F496625415C8A6311FDF59D1 /* ChartViewModel.swift */,
 			);
@@ -256,6 +262,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				B0D0B27236A74B7AAC067BE4 /* StrategyRunView.swift in Sources */,
+				68A07868E6FB4728B0D0BD7E /* OptimizationRunsView.swift in Sources */,
+				A5B6DC2BAE734C12A8CAB89E /* OptimizationViewModel.swift in Sources */,
 				56115C53B6A54E558A72174C /* StrategyViewModel.swift in Sources */,
 				B8DAE29BA3E64D8CA59E503A /* StrategyRun.swift in Sources */,
 				49053970795B42DC83A223A3 /* PairConfigView.swift in Sources */,
