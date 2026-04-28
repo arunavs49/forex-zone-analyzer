@@ -17,8 +17,8 @@ public class StrategyOptimizer
     // Zone detection parameter grid
     private static readonly int[] MinBaseLengths = { 1, 2, 3 };
     private static readonly int[] MaxBaseLengths = { 3, 4, 5, 6, 7, 8 };
-    private static readonly double[] LegInRatios = { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
-    private static readonly double[] LegOutRatios = { 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 };
+    private static readonly double[] LegInRatios = { 1.0, 1.25, 1.5, 2.0, 2.5, 3.0 };
+    private static readonly double[] LegOutRatios = { 1.0, 1.25, 1.5, 2.0, 2.5, 3.0 };
 
     // Trend detection parameter grid
     private static readonly int[] SwingLookbacks = { 2, 3, 4, 5 };
@@ -103,8 +103,35 @@ public class StrategyOptimizer
 
         var topResults = results
             .OrderByDescending(r => r.Score)
-            .Take(topN)
+            .Take(topN * 3) // Take extra candidates for ratio preference
             .ToList();
+
+        // Among results within 5% of top score, prefer higher min leg ratio
+        if (topResults.Count > 1)
+        {
+            var bestScore = topResults[0].Score;
+            var threshold = bestScore * 0.95;
+
+            topResults = topResults
+                .OrderByDescending(r =>
+                {
+                    if (r.Score >= threshold)
+                    {
+                        // Within 5% tolerance: boost ranking by min leg ratio
+                        var minRatio = Math.Min(
+                            r.ZoneConfig.MinLegInToBaseRangeRatio,
+                            r.ZoneConfig.MinLegOutToBaseRangeRatio);
+                        return r.Score + (minRatio * 0.001); // Tiny nudge for higher ratios
+                    }
+                    return r.Score;
+                })
+                .Take(topN)
+                .ToList();
+        }
+        else
+        {
+            topResults = topResults.Take(topN).ToList();
+        }
 
         return new OptimizationResult
         {

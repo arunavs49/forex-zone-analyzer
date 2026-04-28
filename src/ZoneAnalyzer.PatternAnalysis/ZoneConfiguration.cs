@@ -19,8 +19,24 @@ namespace ZoneAnalyzer.PatternAnalysis
             if (baseRange <= 0)
                 return false;
 
-            var legInRatio = Math.Abs((zone.LegInEndPrice - zone.LegInStartPrice) / baseRange);
-            var legOutRatio = Math.Abs((zone.LegOutEndPrice - zone.LegOutStartPrice) / baseRange);
+            // Leg length = movement OUTSIDE the base (from leg extreme to near base edge)
+            double legInLength;
+            if (zone.LegInEndPrice > zone.LegInStartPrice) // Rally leg in (enters base from below)
+                legInLength = zone.BaseRangeLow - zone.LegInStartPrice;
+            else // Drop leg in (enters base from above)
+                legInLength = zone.LegInStartPrice - zone.BaseRangeHigh;
+
+            double legOutLength;
+            if (zone.LegOutEndPrice > zone.LegOutStartPrice) // Rally leg out (exits from top)
+                legOutLength = zone.LegOutEndPrice - zone.BaseRangeHigh;
+            else // Drop leg out (exits from bottom)
+                legOutLength = zone.BaseRangeLow - zone.LegOutEndPrice;
+
+            if (legInLength <= 0 || legOutLength <= 0)
+                return false;
+
+            var legInRatio = legInLength / baseRange;
+            var legOutRatio = legOutLength / baseRange;
 
             return zone.BaseCandleCount >= MinBaseLength &&
                    zone.BaseCandleCount <= MaxBaseLength &&
