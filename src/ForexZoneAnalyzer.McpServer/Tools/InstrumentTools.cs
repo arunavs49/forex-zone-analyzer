@@ -12,9 +12,10 @@ namespace ForexZoneAnalyzer.McpServer.Tools;
 [McpServerToolType]
 public sealed class InstrumentTools
 {
-    [McpServerTool(Name = "get_candles"), Description("Get candlestick (OHLC) data for a forex instrument over a time range.")]
+    [McpServerTool(Name = "get_candles"), Description("Get candlestick (OHLC) data for a forex instrument over a time range. Uses cached candles when available.")]
     public static async Task<string> GetCandles(
         IOandaConnectionService connectionService,
+        CandleCacheReader cacheReader,
         [Description("Instrument name (e.g. 'EUR_USD', 'GBP_JPY', 'USD_CAD')")] string instrument,
         [Description("Candle granularity: S5, S10, S15, S30, M1, M2, M4, M5, M10, M15, M30, H1, H2, H3, H4, H6, H8, H12, D, W, M")] string granularity,
         [Description("Number of candles to retrieve (max 5000, default 100)")] int count = 100,
@@ -26,11 +27,54 @@ public sealed class InstrumentTools
             var gran = Enum.Parse<CandlestickGranularity>(granularity, ignoreCase: true);
             count = Math.Clamp(count, 1, 5000);
 
-            var connection = await connectionService.GetConnectionAsync(cancellationToken);
-            var inst = connection.GetInstrument(instrumentName);
-            var candles = await inst.GetLastNCandlesAsync(gran, count, new[] { PricingComponent.Mid });
+            List<Candlestick> allCandles;
 
-            var result = candles.Select(c => new
+            // Try cache first — read coverage, then fetch only the gap from OANDA
+            var coverage = await cacheReader.GetCoverageAsync(instrument, granularity, cancellationToken);
+            if (coverage.HasValue && coverage.Value.count > 0)
+            {
+                var (cachedFrom, cachedTo, _) = coverage.Value;
+
+                // Read cached candles
+                var cached = await cacheReader.GetCachedCandlesAsync(
+                    instrument, granularity, cachedFrom, DateTime.UtcNow, cancellationToken);
+
+                // Fetch only candles newer than the latest cached one from OANDA
+                var connection = await connectionService.GetConnectionAsync(cancellationToken);
+                var inst = connection.GetInstrument(instrumentName);
+                var freshFrom = cachedTo.AddSeconds(1);
+                var fresh = new List<Candlestick>();
+
+                if (freshFrom < DateTime.UtcNow)
+                {
+                    var fetched = await inst.GetCandlesByTimeAsync(
+                        gran, freshFrom, DateTime.UtcNow, new[] { PricingComponent.Mid });
+                    fresh.AddRange(fetched);
+                }
+
+                // Merge: cached + fresh, deduplicate by time, take last N
+                var seen = new HashSet<string>();
+                allCandles = new List<Candlestick>();
+                foreach (var c in cached.Concat(fresh))
+                {
+                    if (seen.Add(c.Time))
+                        allCandles.Add(c);
+                }
+
+                allCandles = allCandles
+                    .OrderBy(c => c.Time)
+                    .TakeLast(count)
+                    .ToList();
+            }
+            else
+            {
+                // No cache — fetch everything from OANDA
+                var connection = await connectionService.GetConnectionAsync(cancellationToken);
+                var inst = connection.GetInstrument(instrumentName);
+                allCandles = (await inst.GetLastNCandlesAsync(gran, count, new[] { PricingComponent.Mid })).ToList();
+            }
+
+            var result = allCandles.Select(c => new
             {
                 Time = c.Time,
                 Open = c.Mid?.O,

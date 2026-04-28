@@ -81,6 +81,36 @@ builder.Services.AddSingleton(sp =>
     return new ForexZoneAnalyzer.McpServer.Services.ConfigTableClient(configClient, statusClient);
 });
 
+// Candle cache reader (reads worker's cached candles from Table Storage)
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var connectionString = config["Storage:ConnectionString"];
+
+    var clientOptions = new TableClientOptions();
+    clientOptions.Retry.MaxRetries = 5;
+    clientOptions.Retry.Mode = Azure.Core.RetryMode.Exponential;
+    clientOptions.Retry.Delay = TimeSpan.FromSeconds(1);
+    clientOptions.Retry.MaxDelay = TimeSpan.FromSeconds(30);
+
+    TableClient candleClient, metaClient;
+    if (!string.IsNullOrEmpty(connectionString))
+    {
+        candleClient = new TableClient(connectionString, "candlecache", clientOptions);
+        metaClient = new TableClient(connectionString, "candlecachemeta", clientOptions);
+    }
+    else
+    {
+        var accountName = config["Storage:AccountName"];
+        var endpoint = new Uri($"https://{accountName}.table.core.windows.net");
+        var credential = new DefaultAzureCredential();
+        candleClient = new TableClient(endpoint, "candlecache", credential, clientOptions);
+        metaClient = new TableClient(endpoint, "candlecachemeta", credential, clientOptions);
+    }
+
+    return new ForexZoneAnalyzer.McpServer.Services.CandleCacheReader(candleClient, metaClient);
+});
+
 // Azure Storage clients for strategy runs
 builder.Services.AddSingleton(sp =>
 {

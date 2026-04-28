@@ -15,12 +15,19 @@ public class InstrumentToolsTests
     private readonly Mock<IOandaConnectionService> _connectionServiceMock;
     private readonly Mock<IOandaApiConnection> _connectionMock;
     private readonly Mock<IInstrument> _instrumentMock;
+    private readonly Mock<CandleCacheReader> _cacheReaderMock;
 
     public InstrumentToolsTests()
     {
         _connectionServiceMock = new Mock<IOandaConnectionService>();
         _connectionMock = new Mock<IOandaApiConnection>();
         _instrumentMock = new Mock<IInstrument>();
+        _cacheReaderMock = new Mock<CandleCacheReader>(null, null);
+
+        // Cache returns no coverage — all requests fall through to OANDA
+        _cacheReaderMock
+            .Setup(x => x.GetCoverageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(((DateTime, DateTime, int)?)null);
 
         _connectionServiceMock
             .Setup(x => x.GetConnectionAsync(It.IsAny<CancellationToken>()))
@@ -42,7 +49,7 @@ public class InstrumentToolsTests
             .ReturnsAsync(candles);
 
         var result = await InstrumentTools.GetCandles(
-            _connectionServiceMock.Object, "EUR_USD", "H1", 5);
+            _connectionServiceMock.Object, _cacheReaderMock.Object, "EUR_USD", "H1", 5);
 
         Assert.Contains("Open", result);
         Assert.Contains("Close", result);
@@ -61,7 +68,7 @@ public class InstrumentToolsTests
             .ReturnsAsync(candles);
 
         await InstrumentTools.GetCandles(
-            _connectionServiceMock.Object, "EUR_USD", "H1", 10000);
+            _connectionServiceMock.Object, _cacheReaderMock.Object, "EUR_USD", "H1", 10000);
 
         _instrumentMock.Verify(x => x.GetLastNCandlesAsync(
             CandlestickGranularity.H1, 5000,
@@ -154,7 +161,7 @@ public class InstrumentToolsTests
             .ReturnsAsync(candles);
 
         await InstrumentTools.GetCandles(
-            _connectionServiceMock.Object, "GBP_JPY", "M15", 10);
+            _connectionServiceMock.Object, _cacheReaderMock.Object, "GBP_JPY", "M15", 10);
 
         _connectionMock.Verify(x => x.GetInstrument(InstrumentName.GBP_JPY), Times.Once);
         _instrumentMock.Verify(x => x.GetLastNCandlesAsync(
