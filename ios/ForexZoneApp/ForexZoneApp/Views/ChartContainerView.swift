@@ -8,8 +8,8 @@ struct ChartContainerView: View {
     @State private var orderZone: Zone?
     @State private var tradeZone: Zone?
 
-    init(instrument: Instrument) {
-        _viewModel = StateObject(wrappedValue: ChartViewModel(instrument: instrument))
+    init(instrument: Instrument, granularity: Granularity = .H1) {
+        _viewModel = StateObject(wrappedValue: ChartViewModel(instrument: instrument, granularity: granularity))
     }
 
     var body: some View {

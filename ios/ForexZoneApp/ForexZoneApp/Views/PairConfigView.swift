@@ -9,6 +9,12 @@ struct PairConfigListView: View {
     @State private var showAddConfig = false
     @State private var showDisabled = false
 
+    var onSelectConfig: ((Instrument, Granularity) -> Void)?
+
+    init(onSelectConfig: ((Instrument, Granularity) -> Void)? = nil) {
+        self.onSelectConfig = onSelectConfig
+    }
+
     var body: some View {
         List {
             if viewModel.isLoading {
@@ -39,22 +45,30 @@ struct PairConfigListView: View {
                     ForEach(enabled, id: \.key) { instrument, configs in
                         Section(header: Text(instrument.replacingOccurrences(of: "_", with: "/"))) {
                             ForEach(configs) { config in
-                                EnabledConfigRow(config: config)
-                                    .swipeActions(edge: .leading) {
-                                        Button {
-                                            editingConfig = config
-                                        } label: {
-                                            Label("Edit", systemImage: "pencil")
-                                        }
-                                        .tint(.orange)
+                                Button {
+                                    if let inst = Instrument(rawValue: config.Instrument),
+                                       let gran = Granularity(rawValue: config.ZoneGranularity) {
+                                        onSelectConfig?(inst, gran)
                                     }
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                        Button(role: .destructive) {
-                                            Task { await viewModel.toggleEnabled(config: config, settings: settings, authService: authService) }
-                                        } label: {
-                                            Label("Disable", systemImage: "xmark.circle")
-                                        }
+                                } label: {
+                                    EnabledConfigRow(config: config)
+                                }
+                                .buttonStyle(.plain)
+                                .swipeActions(edge: .leading) {
+                                    Button {
+                                        editingConfig = config
+                                    } label: {
+                                        Label("Edit", systemImage: "pencil")
                                     }
+                                    .tint(.orange)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        Task { await viewModel.toggleEnabled(config: config, settings: settings, authService: authService) }
+                                    } label: {
+                                        Label("Disable", systemImage: "xmark.circle")
+                                    }
+                                }
                             }
                         }
                     }

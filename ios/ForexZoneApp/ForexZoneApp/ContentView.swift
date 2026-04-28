@@ -6,9 +6,10 @@ struct ContentView: View {
     @State private var showPendingOrders = false
     @State private var showPairConfigs = false
     @State private var showOptimizations = false
+    @State private var navigationPath = NavigationPath()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             InstrumentListView()
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
@@ -38,6 +39,9 @@ struct ContentView: View {
                         }
                     }
                 }
+                .navigationDestination(for: ChartDestination.self) { dest in
+                    ChartContainerView(instrument: dest.instrument, granularity: dest.granularity)
+                }
                 .sheet(isPresented: $showSettings) {
                     SettingsView()
                 }
@@ -46,7 +50,10 @@ struct ContentView: View {
                 }
                 .sheet(isPresented: $showPairConfigs) {
                     NavigationStack {
-                        PairConfigListView()
+                        PairConfigListView { instrument, granularity in
+                            showPairConfigs = false
+                            navigationPath.append(ChartDestination(instrument: instrument, granularity: granularity))
+                        }
                     }
                 }
                 .sheet(isPresented: $showOptimizations) {
@@ -56,6 +63,12 @@ struct ContentView: View {
                 }
         }
     }
+}
+
+/// Navigation destination for chart view from config tap
+struct ChartDestination: Hashable {
+    let instrument: Instrument
+    let granularity: Granularity
 }
 
 #Preview {
