@@ -34,7 +34,7 @@ class OptimizationViewModel: ObservableObject {
         isLoading = false
     }
 
-    func startRun(config: PairConfig, lookbackMonths: Int, settings: AppSettings, authService: AuthService? = nil) async {
+    func startRun(instrument: String, granularity: String, lookbackMonths: Int, settings: AppSettings, authService: AuthService? = nil) async {
         isStarting = true
         error = nil
         successMessage = nil
@@ -42,13 +42,13 @@ class OptimizationViewModel: ObservableObject {
         do {
             try await configureService(settings: settings, authService: authService)
             let response = try await service.startStrategyRun(
-                instrument: config.Instrument, granularity: config.ZoneGranularity,
+                instrument: instrument, granularity: granularity,
                 lookbackMonths: lookbackMonths)
 
             if let err = response.Error {
                 error = err
             } else {
-                let label = "\(config.Instrument.replacingOccurrences(of: "_", with: "/")) \(config.ZoneGranularity)"
+                let label = "\(instrument.replacingOccurrences(of: "_", with: "/")) \(granularity)"
                 successMessage = "Queued optimization for \(label)"
                 await loadData(settings: settings, authService: authService)
             }

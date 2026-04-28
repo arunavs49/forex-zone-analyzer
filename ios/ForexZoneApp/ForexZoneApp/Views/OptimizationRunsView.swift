@@ -104,21 +104,35 @@ struct NewRunSheet: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var authService: AuthService
     @Environment(\.dismiss) var dismiss
-    @State private var selectedConfigIndex = 0
+
+    static let instruments = [
+        "EUR_USD", "GBP_USD", "USD_JPY", "AUD_USD",
+        "NZD_USD", "USD_CAD", "USD_CHF"
+    ]
+    static let timeframes = ["M5", "M15", "M30", "H1", "H4", "D"]
+
+    @State private var selectedInstrument = "EUR_USD"
+    @State private var selectedTimeframe = "H1"
     @State private var lookbackMonths = 6
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Pair + Timeframe") {
-                    Picker("Config", selection: $selectedConfigIndex) {
-                        ForEach(Array(viewModel.enabledConfigs.enumerated()), id: \.offset) { idx, config in
-                            Text("\(config.Instrument.replacingOccurrences(of: "_", with: "/")) \(config.ZoneGranularity)")
-                                .tag(idx)
+                Section("Currency Pair") {
+                    Picker("Instrument", selection: $selectedInstrument) {
+                        ForEach(Self.instruments, id: \.self) { inst in
+                            Text(inst.replacingOccurrences(of: "_", with: "/")).tag(inst)
                         }
                     }
-                    .pickerStyle(.wheel)
-                    .frame(height: 120)
+                }
+
+                Section("Timeframe") {
+                    Picker("Timeframe", selection: $selectedTimeframe) {
+                        ForEach(Self.timeframes, id: \.self) { tf in
+                            Text(tf).tag(tf)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section("Settings") {
@@ -140,16 +154,17 @@ struct NewRunSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Start") {
                         Task {
-                            let config = viewModel.enabledConfigs[selectedConfigIndex]
                             await viewModel.startRun(
-                                config: config, lookbackMonths: lookbackMonths,
+                                instrument: selectedInstrument,
+                                granularity: selectedTimeframe,
+                                lookbackMonths: lookbackMonths,
                                 settings: settings, authService: authService)
                             if viewModel.error == nil {
                                 dismiss()
                             }
                         }
                     }
-                    .disabled(viewModel.isStarting || viewModel.enabledConfigs.isEmpty)
+                    .disabled(viewModel.isStarting)
                 }
             }
         }
