@@ -5,39 +5,32 @@ struct OptimizationRunsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel = OptimizationViewModel()
+    @State private var showNewRun = false
 
     var body: some View {
         List {
-            if viewModel.isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView("Loading runs...")
-                    Spacer()
-                }
-            } else if let error = viewModel.error {
-                VStack(spacing: 8) {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                    Button("Retry") {
-                        Task { await viewModel.loadRuns(settings: settings, authService: authService) }
-                    }
-                    .buttonStyle(.bordered)
-                }
-            } else if viewModel.runs.isEmpty {
-                Text("No optimization runs yet.")
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(viewModel.runs) { run in
+            // New run section
+            if !viewModel.enabledConfigs.isEmpty {
+                Section {
                     Button {
-                        Task { await viewModel.loadRunDetails(run: run, settings: settings, authService: authService) }
+                        showNewRun = true
                     } label: {
-                        RecentRunRow(run: run)
+                        HStack {
+                            Image(systemName: "bolt.fill")
+                                .foregroundStyle(.orange)
+                            Text("New Optimization Run")
+                                .fontWeight(.medium)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
                     .buttonStyle(.plain)
                 }
             }
 
+            // Status messages
             if let success = viewModel.successMessage {
                 Section {
                     Text(success)
@@ -45,14 +38,50 @@ struct OptimizationRunsView: View {
                         .font(.caption)
                 }
             }
+
+            // Run history
+            Section("Recent Runs") {
+                if viewModel.isLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView("Loading...")
+                        Spacer()
+                    }
+                } else if let error = viewModel.error {
+                    VStack(spacing: 8) {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                        Button("Retry") {
+                            Task { await viewModel.loadData(settings: settings, authService: authService) }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                } else if viewModel.runs.isEmpty {
+                    Text("No optimization runs yet.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(viewModel.runs) { run in
+                        Button {
+                            Task { await viewModel.loadRunDetails(run: run, settings: settings, authService: authService) }
+                        } label: {
+                            RecentRunRow(run: run)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
         }
         .navigationTitle("Optimization Runs")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            await viewModel.loadRuns(settings: settings, authService: authService)
+            await viewModel.loadData(settings: settings, authService: authService)
         }
         .refreshable {
-            await viewModel.loadRuns(settings: settings, authService: authService)
+            await viewModel.loadData(settings: settings, authService: authService)
+        }
+        .sheet(isPresented: $showNewRun) {
+            NewRunSheet(viewModel: viewModel)
         }
         .sheet(item: $viewModel.activeRun) { run in
             let summary = viewModel.runs.first { $0.RunId == run.RunId }
@@ -62,6 +91,65 @@ struct OptimizationRunsView: View {
                         await viewModel.applyResult(run: s, settings: settings, authService: authService)
                         viewModel.activeRun = nil
                     }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - New Run Sheet
+
+struct NewRunSheet: View {
+    @ObservedObject var viewModel: OptimizationViewModel
+    @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var authService: AuthService
+    @Environment(\.dismiss) var dismiss
+    @State private var selectedConfigIndex = 0
+    @State private var lookbackMonths = 6
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Pair + Timeframe") {
+                    Picker("Config", selection: $selectedConfigIndex) {
+                        ForEach(Array(viewModel.enabledConfigs.enumerated()), id: \.offset) { idx, config in
+                            Text("\(config.Instrument.replacingOccurrences(of: "_", with: "/")) \(config.ZoneGranularity)")
+                                .tag(idx)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(height: 120)
+                }
+
+                Section("Settings") {
+                    Stepper("Lookback: \(lookbackMonths) months", value: $lookbackMonths, in: 1...24)
+                }
+
+                if let error = viewModel.error {
+                    Section {
+                        Text(error).foregroundStyle(.red).font(.caption)
+                    }
+                }
+            }
+            .navigationTitle("New Optimization")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Start") {
+                        Task {
+                            let config = viewModel.enabledConfigs[selectedConfigIndex]
+                            await viewModel.startRun(
+                                config: config, lookbackMonths: lookbackMonths,
+                                settings: settings, authService: authService)
+                            if viewModel.error == nil {
+                                dismiss()
+                            }
+                        }
+                    }
+                    .disabled(viewModel.isStarting || viewModel.enabledConfigs.isEmpty)
                 }
             }
         }

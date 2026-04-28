@@ -5,26 +5,58 @@ import SwiftUI
 @MainActor
 class OptimizationViewModel: ObservableObject {
     @Published var runs: [StrategyRunSummary] = []
+    @Published var enabledConfigs: [PairConfig] = []
     @Published var activeRun: StrategyRun?
     @Published var isLoading = false
+    @Published var isStarting = false
     @Published var error: String?
     @Published var successMessage: String?
 
     private let service = ForexDataService()
 
-    func loadRuns(settings: AppSettings, authService: AuthService? = nil) async {
+    func loadData(settings: AppSettings, authService: AuthService? = nil) async {
         isLoading = true
         error = nil
 
         do {
             try await configureService(settings: settings, authService: authService)
-            let response = try await service.listRecentStrategyRuns(limit: 10)
-            runs = response.Runs
+
+            async let runsFetch = service.listRecentStrategyRuns(limit: 10)
+            async let configsFetch = service.listPairConfigs()
+
+            let (runsResponse, configsResponse) = try await (runsFetch, configsFetch)
+            runs = runsResponse.Runs
+            enabledConfigs = configsResponse.Configs.filter { $0.Enabled }
         } catch {
             self.error = error.localizedDescription
         }
 
         isLoading = false
+    }
+
+    func startRun(config: PairConfig, lookbackMonths: Int, settings: AppSettings, authService: AuthService? = nil) async {
+        isStarting = true
+        error = nil
+        successMessage = nil
+
+        do {
+            try await configureService(settings: settings, authService: authService)
+            let response = try await service.startStrategyRun(
+                instrument: config.Instrument, granularity: config.ZoneGranularity,
+                lookbackMonths: lookbackMonths)
+
+            if let err = response.Error {
+                error = err
+            } else {
+                let label = "\(config.Instrument.replacingOccurrences(of: "_", with: "/")) \(config.ZoneGranularity)"
+                successMessage = "Queued optimization for \(label)"
+                await loadData(settings: settings, authService: authService)
+            }
+        } catch {
+            self.error = error.localizedDescription
+        }
+
+        isStarting = false
     }
 
     func loadRunDetails(run: StrategyRunSummary, settings: AppSettings, authService: AuthService? = nil) async {
@@ -54,7 +86,7 @@ class OptimizationViewModel: ObservableObject {
             if let err = response.Error {
                 error = err
             } else {
-                successMessage = "Applied config v\(response.ConfigVersion ?? 0) to \(instrument) \(granularity)"
+                successMessage = "Applied config v\(response.ConfigVersion ?? 0) to \(instrument.replacingOccurrences(of: "_", with: "/")) \(granularity)"
             }
         } catch {
             self.error = error.localizedDescription
