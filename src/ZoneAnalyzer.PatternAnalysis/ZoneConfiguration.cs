@@ -19,18 +19,38 @@ namespace ZoneAnalyzer.PatternAnalysis
             if (baseRange <= 0)
                 return false;
 
-            // Leg length = movement OUTSIDE the base (from leg extreme to near base edge)
-            double legInLength;
-            if (zone.LegInEndPrice > zone.LegInStartPrice) // Rally leg in (enters base from below)
-                legInLength = zone.BaseRangeLow - zone.LegInStartPrice;
-            else // Drop leg in (enters base from above)
-                legInLength = zone.LegInStartPrice - zone.BaseRangeHigh;
+            // Leg length = total leg movement minus the portion overlapping the base
+            double legInTop, legInBottom;
+            if (zone.LegInEndPrice > zone.LegInStartPrice) // Rally leg in
+            {
+                legInBottom = zone.LegInStartPrice;
+                legInTop = zone.LegInEndPrice;
+            }
+            else // Drop leg in
+            {
+                legInBottom = zone.LegInEndPrice;
+                legInTop = zone.LegInStartPrice;
+            }
 
-            double legOutLength;
-            if (zone.LegOutEndPrice > zone.LegOutStartPrice) // Rally leg out (exits from top)
-                legOutLength = zone.LegOutEndPrice - zone.BaseRangeHigh;
-            else // Drop leg out (exits from bottom)
-                legOutLength = zone.BaseRangeLow - zone.LegOutEndPrice;
+            double legOutTop, legOutBottom;
+            if (zone.LegOutEndPrice > zone.LegOutStartPrice) // Rally leg out
+            {
+                legOutBottom = zone.LegOutStartPrice;
+                legOutTop = zone.LegOutEndPrice;
+            }
+            else // Drop leg out
+            {
+                legOutBottom = zone.LegOutEndPrice;
+                legOutTop = zone.LegOutStartPrice;
+            }
+
+            var legInTotal = legInTop - legInBottom;
+            var legInOverlap = Math.Max(0, Math.Min(legInTop, zone.BaseRangeHigh) - Math.Max(legInBottom, zone.BaseRangeLow));
+            var legInLength = legInTotal - legInOverlap;
+
+            var legOutTotal = legOutTop - legOutBottom;
+            var legOutOverlap = Math.Max(0, Math.Min(legOutTop, zone.BaseRangeHigh) - Math.Max(legOutBottom, zone.BaseRangeLow));
+            var legOutLength = legOutTotal - legOutOverlap;
 
             if (legInLength <= 0 || legOutLength <= 0)
                 return false;

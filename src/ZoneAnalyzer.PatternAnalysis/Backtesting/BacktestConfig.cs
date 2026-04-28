@@ -12,7 +12,7 @@ public class BacktestConfig
     public int TimeoutCandles { get; set; } = 100;
 
     /// <summary>Minimum number of zones that must match a config for it to be scored.</summary>
-    public int MinZonesForScoring { get; set; } = 10;
+    public int MinZonesForScoring { get; set; } = 5;
 
     /// <summary>Take profit as a multiple of base width.</summary>
     public double TakeProfitMultiple { get; set; } = 2.0;
