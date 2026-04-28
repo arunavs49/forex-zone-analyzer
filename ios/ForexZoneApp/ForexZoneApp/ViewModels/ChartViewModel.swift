@@ -104,6 +104,9 @@ class ChartViewModel: ObservableObject {
         visibleZones.filter { $0.type == .Demand }
     }
 
+    /// Whether the current pair+TF has zone processing enabled
+    @Published var processingEnabled = false
+
     func loadData(settings: AppSettings, authService: AuthService? = nil) async {
         isLoading = true
         error = nil
@@ -115,31 +118,60 @@ class ChartViewModel: ObservableObject {
                 try await service.configure(url: settings.mcpServerURL, token: settings.bearerToken)
             }
 
-            // Candles fetched live; zones + trend from storage in one call
-            async let candlesFetch = service.getCandles(
-                instrument: instrument.rawValue,
-                granularity: granularity.rawValue,
-                count: granularity.defaultCandleCount
-            )
-            async let storedFetch = service.getStoredZones(
-                instrument: instrument.rawValue,
-                granularity: granularity.rawValue
-            )
-
-            let (fetchedCandles, storedResponse) = try await (candlesFetch, storedFetch)
-
-            candles = fetchedCandles
-            supplyZones = storedResponse.supplyZones
-            demandZones = storedResponse.demandZones
-            trend = storedResponse.trend ?? "Unknown"
-
-            // Fetch pair status (non-blocking — don't fail if unavailable)
+            // Check if processing is enabled for this pair+TF
+            let configEnabled: Bool
             do {
-                pairStatus = try await service.getPairStatus(
+                let config = try await service.getPairConfig(
                     instrument: instrument.rawValue,
                     granularity: granularity.rawValue
                 )
+                configEnabled = config.Enabled
             } catch {
+                configEnabled = false
+            }
+            processingEnabled = configEnabled
+
+            if configEnabled {
+                // Candles fetched live; zones + trend from storage in one call
+                async let candlesFetch = service.getCandles(
+                    instrument: instrument.rawValue,
+                    granularity: granularity.rawValue,
+                    count: granularity.defaultCandleCount
+                )
+                async let storedFetch = service.getStoredZones(
+                    instrument: instrument.rawValue,
+                    granularity: granularity.rawValue
+                )
+
+                let (fetchedCandles, storedResponse) = try await (candlesFetch, storedFetch)
+
+                candles = fetchedCandles
+                supplyZones = storedResponse.supplyZones
+                demandZones = storedResponse.demandZones
+                trend = storedResponse.trend ?? "Unknown"
+            } else {
+                // Only fetch candles — no zones available
+                candles = try await service.getCandles(
+                    instrument: instrument.rawValue,
+                    granularity: granularity.rawValue,
+                    count: granularity.defaultCandleCount
+                )
+                supplyZones = []
+                demandZones = []
+                trend = ""
+            }
+
+            // Fetch pair status (non-blocking — don't fail if unavailable)
+            if configEnabled {
+                do {
+                    pairStatus = try await service.getPairStatus(
+                        instrument: instrument.rawValue,
+                        granularity: granularity.rawValue
+                    )
+                } catch {
+                    pairStatus = nil
+                }
+            } else {
                 pairStatus = nil
             }
         } catch {
