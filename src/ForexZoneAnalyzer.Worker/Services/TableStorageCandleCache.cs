@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using Azure.Data.Tables;
 using Azure.Identity;
@@ -16,6 +17,9 @@ public class TableStorageCandleCache : ICandleStorageCache
     private readonly TableClient _metaTable;
     private readonly OandaConnectionService _connectionService;
     private readonly ILogger<TableStorageCandleCache> _logger;
+
+    // Per-partition locks to prevent concurrent backfills for the same instrument+granularity
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _backfillLocks = new();
 
     // OANDA limits: max 5000 candles per request
     private const int OandaBatchSize = 5000;
@@ -75,10 +79,37 @@ public class TableStorageCandleCache : ICandleStorageCache
                 gaps.Add((meta.CachedToUtc, to));
         }
 
-        // Backfill each gap from OANDA
-        foreach (var gap in gaps)
+        // Serialize backfills per partition to avoid duplicate batch inserts
+        if (gaps.Count > 0)
         {
-            await BackfillRangeAsync(instrument, granularity, gap.from, gap.to, cancellationToken);
+            var lockObj = _backfillLocks.GetOrAdd(partitionKey, _ => new SemaphoreSlim(1, 1));
+            await lockObj.WaitAsync(cancellationToken);
+            try
+            {
+                // Re-check coverage after acquiring lock — another thread may have filled the gap
+                var freshMeta = await GetCoverageAsync(instrument, granularity, cancellationToken);
+                var freshGaps = new List<(DateTime from, DateTime to)>();
+                if (freshMeta == null)
+                {
+                    freshGaps.Add((from, to));
+                }
+                else
+                {
+                    if (from < freshMeta.CachedFromUtc)
+                        freshGaps.Add((from, freshMeta.CachedFromUtc));
+                    if (to > freshMeta.CachedToUtc)
+                        freshGaps.Add((freshMeta.CachedToUtc, to));
+                }
+
+                foreach (var gap in freshGaps)
+                {
+                    await BackfillRangeAsync(instrument, granularity, gap.from, gap.to, cancellationToken);
+                }
+            }
+            finally
+            {
+                lockObj.Release();
+            }
         }
 
         // Read from Table Storage
@@ -148,8 +179,14 @@ public class TableStorageCandleCache : ICandleStorageCache
             // Store only complete candles
             var complete = fetched.Where(c => c.Complete).ToList();
 
+            // Deduplicate by timestamp (OANDA can return duplicate candles)
+            var deduped = complete
+                .GroupBy(c => c.ParsedTime())
+                .Select(g => g.Last())
+                .ToList();
+
             // Batch upsert to Table Storage (100 per batch — Table Storage limit)
-            foreach (var batch in complete.Chunk(100))
+            foreach (var batch in deduped.Chunk(100))
             {
                 var actions = batch.Select(c =>
                 {
